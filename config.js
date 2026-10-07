@@ -4,5 +4,5 @@
 window.CASARINOTECH_CONFIG = {
   supabaseUrl: "https://vflynggklrhbuiemzcvj.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbHluZ2drbHJoYnVpZW16Y3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzOTgzNTksImV4cCI6MjEwNjk3NDM1OX0.4GkmPjmHluCt5NwEX8Q2MhCcpRlG-lNasvv-LiRgjB8",
-  vapidPublica: "COLE_AQUI_A_CHAVE_VAPID_PUBLICA"
+  vapidPublica: "BGs9GYHW7C7cg9Uba_m4SJC03OOvZ1sptX-yGr-TgvzFbXkE_UnQsHJzA4Qx3STbRhTgDazi3jybvlwObqMR8Uc"
 };

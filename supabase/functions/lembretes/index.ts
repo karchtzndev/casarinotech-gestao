@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const { data: seg } = await sb.from("segredos").select("chave, valor");
   const S = Object.fromEntries((seg ?? []).map((r: any) => [r.chave, r.valor]));
-  webpush.setVapidDetails("mailto:contato@casarinotech.com.br", S.vapid_publica, S.vapid_privada);
+  webpush.setVapidDetails("https://casarinotech-gestao.vercel.app", S.vapid_publica, S.vapid_privada);
   const body = await req.json().catch(() => ({}));
 
   const enviar = async (userIds: string[], payload: Record<string, unknown>) => {
