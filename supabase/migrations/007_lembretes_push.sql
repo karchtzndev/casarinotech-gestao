@@ -1,5 +1,4 @@
 -- Lembretes por notificação (Web Push): inscrições dos aparelhos, segredos do servidor,
--- ATENÇÃO: troque SEU-PROJETO pela referência do seu projeto Supabase antes de rodar (linha da url abaixo).
 -- controle de envio e agendamento a cada 15 min (a função decide a hora certa pela jornada).
 create extension if not exists pg_net;
 
@@ -30,7 +29,7 @@ alter table public.lembretes_enviados enable row level security;
 
 select cron.schedule('casarinotech-lembretes', '*/15 13-23 * * 1-6', $$
   select net.http_post(
-    url := 'https://SEU-PROJETO.supabase.co/functions/v1/lembretes',
+    url := 'https://vflynggklrhbuiemzcvj.supabase.co/functions/v1/lembretes',
     headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-token', (select valor from public.segredos where chave = 'cron_token')),
     body := '{}'::jsonb)
 $$);
