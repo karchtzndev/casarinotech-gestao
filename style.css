@@ -13,18 +13,18 @@ img{max-width:100%}
   --f-display:'Montserrat',system-ui,-apple-system,'Segoe UI',sans-serif;
   --f-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
-  --r:10px;
+  --r:18px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0e1115; --surface:#161a1f; --surface-2:#1f252c; --line:#2b333c; --fg:#e6ebf0; --muted:#9aa6b2;
-  --brand:#5aa9dc; --brand-strong:#7dbfe9; --on-brand:#08131c; --navy:#8cc4ec; --navy-soft:#16293a;
+  --bg:#101317; --surface:#171b20; --surface-2:#1f252b; --line:#262d35; --fg:#e8ecf0; --muted:#98a3ae;
+  --brand:#6db3ff; --brand-strong:#9ccbff; --on-brand:#0c1014; --navy:#8fc4ff; --navy-soft:#16283b;
   --s-n:#36a465; --s-50:#5b8fe6; --s-100:#d8628f;
   --good:#5cc486; --good-bg:#15301e; --warn:#e3a84d; --warn-bg:#33270e; --bad:#ef7d74; --bad-bg:#3b1a17;
   --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --bg:#0e1115; --surface:#161a1f; --surface-2:#1f252c; --line:#2b333c; --fg:#e6ebf0; --muted:#9aa6b2;
-  --brand:#5aa9dc; --brand-strong:#7dbfe9; --on-brand:#08131c; --navy:#8cc4ec; --navy-soft:#16293a;
+  --bg:#101317; --surface:#171b20; --surface-2:#1f252b; --line:#262d35; --fg:#e8ecf0; --muted:#98a3ae;
+  --brand:#6db3ff; --brand-strong:#9ccbff; --on-brand:#0c1014; --navy:#8fc4ff; --navy-soft:#16283b;
   --s-n:#36a465; --s-50:#5b8fe6; --s-100:#d8628f;
   --good:#5cc486; --good-bg:#15301e; --warn:#e3a84d; --warn-bg:#33270e; --bad:#ef7d74; --bad-bg:#3b1a17;
   --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
@@ -430,3 +430,37 @@ body[data-ajaba="dados"] #view [data-aba]:not([data-aba~="dados"]){display:none}
 #papelbox .loteitem input,#papelbox .loteitem select{width:100%;min-width:0}
 .ordcard .fc-acts .btn{white-space:nowrap}
 .lotehead{display:flex;align-items:center;gap:8px;font-size:.92rem}.lotehead input{width:20px!important;height:20px;flex:none}
+
+/* ===== Novo layout (2026-10): cartões arredondados, barra de baixo flutuante, menu lateral e topo mais limpos ===== */
+.btn{border-radius:12px;padding:10px 16px}
+.btn.sm{border-radius:10px;padding:6px 12px}
+.btn.primary{background:linear-gradient(145deg,#6db3ff,#2b6cb0);border-color:transparent;color:#0c1014}
+.btn.primary:hover{background:linear-gradient(145deg,#9ccbff,#3a7cc2)}
+:root[data-theme="light"] .btn.primary,:root:not([data-theme="dark"]) .btn.primary{color:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0c1014}}
+:root[data-theme="dark"] .btn.primary{color:#0c1014}
+.iconbtn{border-radius:12px;background:var(--surface)}
+.chipbtn{padding:7px 14px}
+.monthnav{border-radius:14px}
+.panel,.list,.summary,.tablewrap,.kpi,.empty{border-radius:var(--r)}
+.kpi{padding:16px 18px}
+.kpi .v{font-size:1.75rem}
+.hero{border-radius:24px;padding:24px}
+:root .hero{background:linear-gradient(150deg,#2a6fb8,#1b3f6b 70%,#16304f)}
+.topbar{background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid transparent}
+.brandmark img{border-radius:12px}
+.pagehead h1{font-size:1.85rem}
+.tabbar{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));border:1px solid var(--line);border-radius:26px;padding:6px;gap:2px;background:color-mix(in srgb,var(--surface) 92%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.navbtn{border-radius:18px;padding:8px 2px}
+.navbtn[aria-current="page"]{background:var(--navy-soft);color:var(--brand)}
+main{padding-bottom:130px}
+@media (min-width:900px){
+  main{padding-bottom:60px}
+  .rail{background:color-mix(in srgb,var(--bg) 60%,#000);padding:22px 14px}
+  .rail .navbtn{border-radius:14px;padding:12px 14px}
+  .rail .navbtn:hover{background:var(--surface-2)}
+  .rail .navbtn[aria-current="page"]{background:var(--navy-soft);color:var(--brand)}
+}
+@media (min-width:900px){.rail .brandmark b{font-size:.9rem;letter-spacing:.01em;white-space:nowrap;overflow:visible;text-overflow:clip}.rail .brandmark{gap:10px}}
+:root[data-theme="light"] .btn.primary{background:linear-gradient(145deg,#3a82cc,#1f5a8c)}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn.primary{background:linear-gradient(145deg,#3a82cc,#1f5a8c)}}
