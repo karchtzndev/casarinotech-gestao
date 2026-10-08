@@ -464,3 +464,10 @@ main{padding-bottom:130px}
 @media (min-width:900px){.rail .brandmark b{font-size:.9rem;letter-spacing:.01em;white-space:nowrap;overflow:visible;text-overflow:clip}.rail .brandmark{gap:10px}}
 :root[data-theme="light"] .btn.primary{background:linear-gradient(145deg,#3a82cc,#1f5a8c)}
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn.primary{background:linear-gradient(145deg,#3a82cc,#1f5a8c)}}
+/* teclado aberto no celular (campo em foco): some a barra de baixo e a barra de salvar deixa de flutuar, para nada ficar por cima do texto */
+body.kb .tabbar{display:none}
+body.kb .cfg-salvar{position:static;box-shadow:none}
+body.kb main{padding-bottom:40px}
+body.kb .ajtabs{position:static}
+html{scroll-padding-top:80px;scroll-padding-bottom:110px}
+.sheet{scroll-padding:70px 0 96px}

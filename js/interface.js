@@ -268,3 +268,6 @@ function osLista(emp){
 // ID do TracOS já usado antes nessa mesma OS (a OS pode durar vários dias)
 function tracosDe(os){ os = String(os||"").trim(); if(!os) return ""; const e = [...state.ap].filter(x=>x.os===os && x.tracos).sort((a,b)=>(b.data||"").localeCompare(a.data||""))[0]; return e ? e.tracos : ""; }
 const limpaTracos = v => String(v||"").replace(/[^\w.-]/g,"").slice(0,40);
+// teclado aberto (campo de texto em foco): a classe "kb" esconde as barras que flutuam sobre a tela
+document.addEventListener("focusin", e=>{ if(e.target.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select")) document.body.classList.add("kb"); });
+document.addEventListener("focusout", ()=>{ setTimeout(()=>{ if(!document.activeElement?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select")) document.body.classList.remove("kb"); }, 80); });

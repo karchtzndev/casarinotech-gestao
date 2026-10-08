@@ -2,7 +2,7 @@
 // - arquivos do app: tenta a rede primeiro e guarda uma cópia; sem internet usa a cópia
 // - bibliotecas principais ficam no próprio site (/vendor); as carregadas sob demanda (CDN, fontes) usam a cópia guardada
 // - dados (Supabase) não passam por aqui: o app guarda os dados e a fila de envio no IndexedDB
-const CACHE = "casarinotech-app-v6";
+const CACHE = "casarinotech-app-v7";
 const SHELL = ["/", "/js/base.js", "/js/dados.js", "/js/interface.js", "/js/leitura-os.js", "/js/telas.js", "/js/lancamentos.js", "/js/relatorios.js", "/js/financeiro.js", "/js/ajustes.js", "/js/acoes.js", "/style.css", "/config.js", "/logo.js", "/logo.jpg", "/icon-192.png", "/badge-96.png", "/manifest.webmanifest",
   "/vendor/supabase-2.45.4.min.js", "/vendor/jspdf-2.5.1.umd.min.js", "/vendor/jspdf-autotable-3.8.2.min.js"];
 const CDN = /^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
