@@ -1,12 +1,10 @@
 // Service worker do CasarinoTech Gestão: notificações (lembretes) e funcionamento sem internet.
 // - arquivos do app: tenta a rede primeiro e guarda uma cópia; sem internet usa a cópia
-// - bibliotecas (CDN, fontes): usa a cópia guardada (versões fixas)
+// - bibliotecas principais ficam no próprio site (/vendor); as carregadas sob demanda (CDN, fontes) usam a cópia guardada
 // - dados (Supabase) não passam por aqui: o app guarda os dados e a fila de envio no IndexedDB
-const CACHE = "casarinotech-app-v4";
-const SHELL = ["/", "/app.js", "/style.css", "/config.js", "/logo.js", "/logo.jpg", "/icon-192.png", "/badge-96.png", "/manifest.webmanifest",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"];
+const CACHE = "casarinotech-app-v5";
+const SHELL = ["/", "/js/base.js", "/js/dados.js", "/js/interface.js", "/js/leitura-os.js", "/js/telas.js", "/js/lancamentos.js", "/js/relatorios.js", "/js/financeiro.js", "/js/ajustes.js", "/js/acoes.js", "/style.css", "/config.js", "/logo.js", "/logo.jpg", "/icon-192.png", "/badge-96.png", "/manifest.webmanifest",
+  "/vendor/supabase-2.45.4.min.js", "/vendor/jspdf-2.5.1.umd.min.js", "/vendor/jspdf-autotable-3.8.2.min.js"];
 const CDN = /^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(new Request(u, CDN.test(u) ? { mode: "cors" } : {})).catch(() => {})))).then(() => self.skipWaiting()));
