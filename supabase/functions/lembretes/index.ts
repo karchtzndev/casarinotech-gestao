@@ -66,6 +66,14 @@ async function alertasManha(sb: any, cfg: any, dia: string): Promise<string[]> {
       if ((!f.nf || !f.nf.numero || f.nf.status === "emitir") && dif(f.enviadoEm || f.ate || dia, dia) >= 2) out.push(`${f.numero}: emitir nota fiscal`);
     }
   }
+  // dia de corte da medição (ex.: Brejeiro todo dia 20)
+  for (const [emp, F] of Object.entries<any>(cfg.contratantes ?? {})) {
+    const corte = +F?.corte || 0; if (!corte) continue;
+    const dd = +dia.slice(8), ate = `${dia.slice(0, 8)}${pad(corte)}`;
+    const fechado = (fechs ?? []).some(({ data: f }: any) => (f.empresa || "") === emp && (f.ate || "") >= ate);
+    if (dd === corte) out.unshift(`Hoje é dia ${corte}: fechar a medição ${emp}`);
+    else if (dd > corte && dd <= corte + 7 && !fechado) out.unshift(`Medição ${emp} até ${pad(corte)}/${dia.slice(5, 7)} ainda não foi fechada`);
+  }
   for (const { data: x } of docs ?? []) {
     if (!x.validade) continue; const d = dif(dia, x.validade);
     if (d < 0) out.push(`${x.tipo} de ${x.titular || "Empresa"} vencido`); else if (d <= 30 && (d % 7 === 0 || d <= 3)) out.push(`${x.tipo} de ${x.titular || "Empresa"} vence em ${d} dia(s)`);
@@ -115,6 +123,16 @@ Deno.serve(async (req) => {
   }
 
   if (req.headers.get("x-cron-token") !== S.cron_token) return json({ erro: "proibido" }, 403);
+
+  // chamado de emergência aberto pela contratante no portal: avisa toda a equipe na hora
+  if (body?.chamado) {
+    const { data: ch } = await sb.from("chamados").select("*").eq("id", String(body.chamado)).maybeSingle();
+    if (!ch) return json({ erro: "chamado" }, 404);
+    const { data: ps } = await sb.from("perfis").select("user_id").in("papel", ["dono", "funcionario"]);
+    const d = ch.data ?? {};
+    const n = await enviar((ps ?? []).map((p: any) => p.user_id), { title: `🚨 Chamado de emergência · ${ch.empresa}`, body: `${d.unidade ? d.unidade + ": " : ""}${d.descricao ?? ""}${d.parada ? " (máquina parada)" : ""}${d.nome ? ` — ${d.nome}` : ""}`.slice(0, 220), url: "/#chamados" });
+    return json({ acao: "chamado", enviados: n });
+  }
 
   let { dia, dow, min } = agoraBrasilia();
   if (body?.simular && /^\d{4}-\d{2}-\d{2}$/.test(body?.dia ?? "")) { dia = body.dia; dow = new Date(dia + "T12:00:00Z").getUTCDay(); }
@@ -170,6 +188,10 @@ Deno.serve(async (req) => {
   if (pend) partes.push(`${pend} cadastro(s) aguardando liberação.`);
   if (partes.length) for (const d of donos) plano.push({ u: d.user_id, t: "resumo", p: { title: "Resumo do dia", body: partes.join(" "), url: "/" } });
 
+  // véspera do corte: funcionário confere as próprias OS
+  const amanha = +somaDias(dia, 1).slice(8);
+  const corteAmanha = Object.entries<any>(cfg.contratantes ?? {}).filter(([, F]) => +F?.corte === amanha).map(([n]) => n);
+  if (corteAmanha.length) for (const f of funcs) plano.push({ u: f.user_id, t: "vespera", p: { title: "Amanhã é dia de fechamento", body: `Fechamento ${corteAmanha.join(", ")} amanhã (dia ${amanha}). Confira se todas as suas OS estão lançadas e sem cronômetro aberto.`, url: "/" } });
   const fazer = plano.filter((x) => !jaFoi(x.u, x.t));
   resultado.plano = fazer.map((x) => ({ tipo: x.t, body: x.p.body }));
   if (body?.simular) { resultado.acao = "simulado"; return json(resultado); }
