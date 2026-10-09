@@ -118,7 +118,7 @@ function calcRaw(e){
   r.valor = Math.round((r.vn+r.v50+r.v100+r.vnot)*100)/100;
   return r;
 }
-const VERSAO = "2026.10.09-3";
+const VERSAO = "2026.10.09-4";
 const NOITE_INI = 22*60, NOITE_FIM = 5*60;
 function rateFor(emp, data){
   let t = (state.cfg.taxas||{})[emp] || {}; const num0 = (v,d) => (v===""||v==null||isNaN(+v)) ? d : +v;
@@ -154,8 +154,9 @@ function emergTxt(e){ if(!e.emergencia) return ""; const a = e.acion||{};
   return ["EMERGÊNCIA", a.por?`acionado por ${a.por}`:"", a.as?`às ${a.as}`:"", a.meio?`via ${a.meio}`:"", a.motivo?`(${a.motivo})`:""].filter(Boolean).join(" "); }
 // quem assinou a OS (responsável da unidade)
 function assinOS(e){ const m = Object.values(e.fotoMeta||{}).find(x=>x && x.tipo==="assinatura"); return m ? (m.nome || "responsável") : ""; }
-function descRep(e){ const q = e.equipId && eqDe(e.equipId), pl = q && e.prevId && (q.plano||[]).find(x=>x.id===e.prevId);
-  return [e.descricao||"", e.tracos?`ID TracOS ${e.tracos}`:"", almTxt(e), assinOS(e)?`Assinado por ${assinOS(e)}`:"", q?`Equip. ${q.tag||""}${pl?` (preventiva: ${pl.atividade})`:""}`:"", emergTxt(e), e.obs?`Obs.: ${e.obs}`:""].filter(Boolean).join(" · "); }
+// semId: o relatório já mostra o ID numa coluna própria
+function descRep(e, semId){ const q = e.equipId && eqDe(e.equipId), pl = q && e.prevId && (q.plano||[]).find(x=>x.id===e.prevId);
+  return [e.descricao||"", e.tracos && !semId?`ID TracOS ${e.tracos}`:"", almTxt(e), assinOS(e)?`Assinado por ${assinOS(e)}`:"", q?`Equip. ${q.tag||""}${pl?` (preventiva: ${pl.atividade})`:""}`:"", emergTxt(e), e.obs?`Obs.: ${e.obs}`:""].filter(Boolean).join(" · "); }
 function acionadores(){ const m = {}; state.ap.forEach(e=>{ const p = e.acion?.por; if(p) m[p] = (m[p]||0)+1; }); return Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,30); }
 /* ---------- ficha da contratante ---------- */
 const ficha = emp => ((state.cfg.contratantes||{})[emp]) || {};
