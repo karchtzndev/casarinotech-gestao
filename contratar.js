@@ -1,7 +1,7 @@
 "use strict";
 // Página pública de contato: todos os botões abrem o WhatsApp com uma mensagem pronta.
 // Troque aqui o número (com DDI 55 e DDD, só números). Ex.: "5562999998888"
-const WHATSAPP = "";
+const WHATSAPP = "5562992588393";
 
 const linkWa = texto => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(texto)}`;
 const abrirWa = texto => { window.location.href = linkWa(texto); };
