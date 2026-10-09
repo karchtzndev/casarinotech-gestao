@@ -276,6 +276,8 @@ function instalarHtml(){
   if(instalado()) return "";
   if(pedidoInstalar) return `<div class="banner"><span>Instale o CasarinoTech no celular: abre pelo ícone, em tela cheia, e funciona sem internet.</span><button class="btn sm primary" data-act="instalarApp">Instalar app</button></div>`;
   if(ehAndroid()) return `<div class="banner"><span>Para instalar no Android: no Chrome, toque nos ⋮ (três pontos) → <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</span></div>`;
+  // iPhone/iPad: não existe botão de instalar; é pelo menu Compartilhar (e só com o app instalado chegam os lembretes)
+  if(ehIOS()) return `<div class="banner"><span>${/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent) ? "Para instalar no iPhone, abra este endereço no <b>Safari</b>. Depois: " : "Para instalar no iPhone: "}toque em <b>Compartilhar</b> <span aria-hidden="true">(□↑)</span> → <b>Adicionar à Tela de Início</b> → <b>Adicionar</b>. O CasarinoTech fica com ícone na tela, abre direto nas suas OS e passa a receber os lembretes.</span></div>`;
   return "";
 }
 const instalado = () => window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
