@@ -2,9 +2,11 @@
 // - arquivos do app: tenta a rede primeiro e guarda uma cópia; sem internet usa a cópia
 // - bibliotecas principais ficam no próprio site (/vendor); as carregadas sob demanda (CDN, fontes) usam a cópia guardada
 // - dados (Supabase) não passam por aqui: o app guarda os dados e a fila de envio no IndexedDB
-const CACHE = "casarinotech-app-v7";
-const SHELL = ["/", "/js/base.js", "/js/dados.js", "/js/interface.js", "/js/leitura-os.js", "/js/telas.js", "/js/lancamentos.js", "/js/relatorios.js", "/js/financeiro.js", "/js/ajustes.js", "/js/acoes.js", "/style.css", "/config.js", "/logo.js", "/logo.jpg", "/icon-192.png", "/badge-96.png", "/manifest.webmanifest",
+const CACHE = "casarinotech-app-v8";
+const SHELL = ["/app", "/js/base.js", "/js/dados.js", "/js/interface.js", "/js/leitura-os.js", "/js/telas.js", "/js/lancamentos.js", "/js/relatorios.js", "/js/financeiro.js", "/js/ajustes.js", "/js/acoes.js", "/style.css", "/config.js", "/logo.js", "/logo.jpg", "/icon-192.png", "/badge-96.png", "/manifest.webmanifest",
   "/vendor/supabase-2.45.4.min.js", "/vendor/jspdf-2.5.1.umd.min.js", "/vendor/jspdf-autotable-3.8.2.min.js"];
+// notificações são sempre para a equipe: "/" (página dos clientes) vira o app
+const appUrl = u => (!u || u === "/") ? "/app" : u;
 const CDN = /^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(new Request(u, CDN.test(u) ? { mode: "cors" } : {})).catch(() => {})))).then(() => self.skipWaiting()));
@@ -23,10 +25,10 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     try {
       const res = await fetch(req);
-      if (res.ok && res.type === "basic") { const c = res.clone(); caches.open(CACHE).then(k => k.put(req.mode === "navigate" && url.pathname === "/index.html" ? "/" : req, c)); }
+      if (res.ok && res.type === "basic") { const c = res.clone(); caches.open(CACHE).then(k => k.put(req.mode === "navigate" && url.pathname === "/app.html" ? "/app" : req, c)); }
       return res;
     } catch (err) {
-      const r = await caches.match(req, { ignoreSearch: true }) || (req.mode === "navigate" ? await caches.match("/") : null);
+      const r = await caches.match(req, { ignoreSearch: true }) || (req.mode === "navigate" ? await caches.match("/app") : null);
       if (r) return r;
       throw err;
     }
@@ -35,12 +37,12 @@ self.addEventListener("fetch", e => {
 self.addEventListener("push", e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || "CasarinoTech Gestão", {
-    body: d.body || "", icon: "/icon-192.png", badge: "/badge-96.png", data: { url: d.url || "/" }, tag: d.tag || "casarinotech-lembrete"
+    body: d.body || "", icon: "/icon-192.png", badge: "/badge-96.png", data: { url: appUrl(d.url) }, tag: d.tag || "casarinotech-lembrete"
   }));
 });
 self.addEventListener("notificationclick", e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/";
+  const url = appUrl(e.notification.data && e.notification.data.url);
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
     for (const c of list) { if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); } }
     return self.clients.openWindow(url);
