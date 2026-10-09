@@ -395,5 +395,9 @@ if("serviceWorker" in navigator){
   let jaTinha = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange", ()=>{ if(!jaTinha){ jaTinha = true; return; } if(state.modalDirty || state.cfgDirty || state.orcDirty || $("#dayForm")){ toast("Saiu uma versão nova do app. Salve o que está fazendo e toque em Atualizar."); return; } location.reload(); });
   document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) navigator.serviceWorker.getRegistration().then(r=>r && r.update()).catch(()=>{}); });
+  // o app abre pela cópia do aparelho; quando a versão nova termina de baixar inteira, avisa (vale na próxima abertura)
+  navigator.serviceWorker.addEventListener("message", e=>{ if(e.data?.tipo!=="nova-versao") return;
+    if(state.modalDirty || state.cfgDirty || state.orcDirty || $("#dayForm")) toast("Nova versão do app pronta. Ela entra quando você abrir o app de novo.");
+    else toastAcao("Nova versão do app pronta.", "Atualizar", ()=>location.reload()); });
 }
 initStore();

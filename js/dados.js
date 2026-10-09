@@ -14,7 +14,21 @@ if(!window.supabase?.createClient || !window.CASARINOTECH_CONFIG?.supabaseUrl){
   if(v){ v.innerHTML = '<div class="loading">Não foi possível abrir o sistema agora. Confira a internet e <button class="btn primary sm" type="button">tente de novo</button></div>'; v.querySelector("button").addEventListener("click", ()=>location.reload()); }
   throw new Error("Supabase indisponível (biblioteca ou config.js não carregou)");
 }
-const sb = window.supabase.createClient(window.CASARINOTECH_CONFIG.supabaseUrl, window.CASARINOTECH_CONFIG.supabaseKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+// internet ruim (sinal fraco, o celular acha que está online): nenhuma chamada fica esperando para sempre.
+// Passou do prazo, conta como "sem internet": o app usa a cópia do aparelho e o lançamento vai para a fila de envio.
+function prazoDe(url, opts){ const u = String(url), m = String(opts?.method || "GET").toUpperCase();
+  if(/\/storage\/v1\/object\//.test(u) && m!=="GET") return 90000; // envio de fotos
+  if(/\/auth\/v1\//.test(u)) return 10000;
+  return 15000; }
+function fetchComPrazo(url, opts = {}){
+  const c = new AbortController(), t = setTimeout(()=>c.abort(), prazoDe(url, opts)), externo = opts.signal;
+  if(externo){ if(externo.aborted) c.abort(); else externo.addEventListener("abort", ()=>c.abort(), {once:true}); }
+  return fetch(url, {...opts, signal:c.signal})
+    .catch(e=>{ throw (c.signal.aborted && !externo?.aborted) ? new TypeError("Failed to fetch: tempo esgotado (internet lenta)") : e; })
+    .finally(()=>clearTimeout(t));
+}
+const comPrazo = (p, ms) => Promise.race([p, new Promise((_, rej)=>setTimeout(()=>rej(new TypeError("Failed to fetch: tempo esgotado (internet lenta)")), ms))]);
+const sb = window.supabase.createClient(window.CASARINOTECH_CONFIG.supabaseUrl, window.CASARINOTECH_CONFIG.supabaseKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}, global:{fetch:fetchComPrazo}});
 let session = null, perfil = null;
 const MSG_DB = {SEM_PERMISSAO:"Seu acesso ainda não foi liberado para lançar OS. Fale com o responsável.", NAO_E_SEU:"Esse lançamento não é seu.", DATA_INVALIDA:"Data inválida.", HORA_INVALIDA:"Horário inválido. Use HH:MM.", ID_INVALIDO:"Código de registro inválido.", DADOS_INVALIDOS:"Dados inválidos.", OS_OBRIGATORIA:"Essa contratante exige o nº da OS.", NOME_VAZIO:"Digite o novo nome."};
 function dbErr(error){
@@ -240,8 +254,11 @@ async function carregar(){
   if(outbox.lista.length) reaplicarFila();
 }
 async function boot(){
-  state.ready = false; render();
   await outbox.carregar();
+  // abre na hora com a cópia guardada no aparelho e atualiza pela internet em seguida (internet ruim não trava a tela)
+  const local = await snap.ler(session.user.id), temLocal = !!local?.perfil;
+  if(temLocal){ snap.aplicar(local); reaplicarFila(); state.ready = true; render(); syncTag(); }
+  else { state.ready = false; render(); }
   try{
     if(state.sessaoLocal) throw {rede:true};
     const {data, error} = await sb.from("perfis").select("*").eq("user_id", session.user.id).maybeSingle();
@@ -253,17 +270,21 @@ async function boot(){
     await carregar(); state.offline = false;
     pushEstado().catch(()=>{}); setTimeout(()=>{ carregarChamados(); portalAgendar(); }, 1500);
   }catch(err){
-    const s = (err && err.rede) || ehRede(err) ? await snap.ler(session.user.id) : null;
-    if(s && s.perfil){ snap.aplicar(s); state.offline = true; reaplicarFila(); toast("Sem internet: mostrando os dados salvos neste aparelho. O que você lançar será enviado quando a conexão voltar."); }
+    const rede = (err && err.rede) || ehRede(err);
+    if(temLocal && rede){ state.offline = true; toast("Internet fraca ou sem conexão: usando os dados salvos neste aparelho. O que você lançar será enviado quando a conexão voltar."); }
+    else if(temLocal) toast("Não consegui atualizar os dados agora. Mostrando os salvos neste aparelho.");
     else toast("Não consegui carregar os dados. Verifique a conexão e recarregue a página.");
   }
-  state.ready = true; render(); syncTag(); snap.agendar();
+  const jaMostrava = temLocal; state.ready = true;
+  if(jaMostrava) scheduleRender(); else render(); // com uma janela aberta, espera ela fechar
+  syncTag(); snap.agendar();
 }
 // itens ainda na fila aparecem na tela mesmo depois de recarregar os dados
 function reaplicarFila(){ outbox.lista.forEach(it=>{ const k = KEY[it.col]; if(!k) return; if(it.op==="del") setList(k, state[k].filter(x=>x.id!==it.id)); else upsertLocal(k, {...it.data, id:it.id, _pend:true, ...(it.versao?{_v:it.versao}:{})}); }); }
 async function initStore(){
-  let r = null; try{ r = await sb.auth.getSession(); }catch(e){} session = r?.data?.session || null;
-  if(!session && !navigator.onLine){ const s = sessaoGuardada(); if(s){ session = s; state.sessaoLocal = true; } }
+  // a sessão salva pode precisar ser renovada pela internet: com internet ruim, não espera mais que 6 s
+  let r = null, falhou = false; try{ r = await comPrazo(sb.auth.getSession(), 6000); }catch(e){ falhou = true; } session = r?.data?.session || null;
+  if(!session && (falhou || !navigator.onLine || (r?.error && ehRede(r.error)))){ const s = sessaoGuardada(); if(s){ session = s; state.sessaoLocal = true; } }
   sb.auth.onAuthStateChange((ev, s)=>{
     const tinha = !!session; session = s;
     if(ev==="PASSWORD_RECOVERY"){ state.auth = "nova-senha"; state.ready = true; render(); return; }
