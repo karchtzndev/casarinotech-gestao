@@ -76,21 +76,21 @@ function repSummary(t){
     ["Total geral de horas", t.total, t.valor]
   ];
 }
-function repHead(C){ const cfg=state.cfg; return ["ORDEM","DIA","DATA","INÍCIO","FIM","DESCRIÇÃO","HORAS",`${cfg.extraPct}%`,`${cfg.feriadoPct}%`,...(C.val?["VALOR"]:[]),...(C.tid?["ID TRACTIAN"]:[]),...(C.unid?["UNIDADE"]:[]),...(C.emp?["EMPRESA"]:[]),...(C.prof?["FUNCIONÁRIO"]:[])]; }
-function repExtra(e, C){ return [...(C.tid?[e.tracos||""]:[]), ...(C.unid?[e.cliente||""]:[]), ...(C.emp?[empOf(e)]:[]), ...(C.prof?[e.profissional||""]:[])]; }
+function repHead(C){ const cfg=state.cfg; return ["ORDEM",...(C.tid?["ID TRACTIAN"]:[]),"DIA","DATA","INÍCIO","FIM","DESCRIÇÃO","HORAS",`${cfg.extraPct}%`,`${cfg.feriadoPct}%`,...(C.val?["VALOR"]:[]),...(C.unid?["UNIDADE"]:[]),...(C.emp?["EMPRESA"]:[]),...(C.prof?["FUNCIONÁRIO"]:[])]; }
+function repExtra(e, C){ return [...(C.unid?[e.cliente||""]:[]), ...(C.emp?[empOf(e)]:[]), ...(C.prof?[e.profissional||""]:[])]; }
 function groupHtml(rows){
   const days = repDays(rows), cfg = state.cfg, t = sumCalc(rows), C = repCols(rows), nDias = days.filter(d=>d.rows.length).length;
-  const head = repHead(C), ncols = head.length, nExtra = ncols - 9 - (C.val?1:0);
+  const head = repHead(C), ncols = head.length, k = C.tid ? 1 : 0, nExtra = ncols - 9 - k - (C.val?1:0); // k: coluna do ID logo depois da ORDEM
   const body = days.map(d=>{
     const hol = holidayName(d.data), sun = parseYmd(d.data).getDay()===0;
     const dayCells = k => `<td rowspan="${k}" style="white-space:nowrap">${wdl(d.data)}${hol?`<br><span class="pill bad">${esc(hol)}</span>`:""}</td><td rowspan="${k}" class="mono">${fdate(d.data)}</td>`;
-    if(!d.rows.length) return `<tr style="${sun||hol?"background:var(--surface-2)":""}"><td></td>${dayCells(1)}<td colspan="${ncols-3}"></td></tr>`;
-    return d.rows.map((e,i)=>{ const c=calc(e); return `<tr><td class="mono">${esc(e.os||"-")}</td>${i===0?dayCells(d.rows.length):""}<td class="mono">${esc(e.inicio)}</td><td class="mono">${esc(e.fim)}</td><td>${esc(e.descricao||"")}${e.emergencia?' <span class="pill warn">Emergência</span>':""}</td><td class="r mono"><b>${repH(c.total)}</b></td><td class="r mono">${repX(c.e50)}</td><td class="r mono">${repX(c.e100)}</td>${C.val?`<td class="r mono">${brl(c.valor)}</td>`:""}${repExtra(e,C).map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`; }).join("");
+    if(!d.rows.length) return `<tr style="${sun||hol?"background:var(--surface-2)":""}"><td></td>${k?"<td></td>":""}${dayCells(1)}<td colspan="${ncols-3-k}"></td></tr>`;
+    return d.rows.map((e,i)=>{ const c=calc(e); return `<tr><td class="mono">${esc(e.os||"-")}</td>${k?`<td class="mono">${esc(e.tracos||"")}</td>`:""}${i===0?dayCells(d.rows.length):""}<td class="mono">${esc(e.inicio)}</td><td class="mono">${esc(e.fim)}</td><td>${esc(e.descricao||"")}${e.emergencia?' <span class="pill warn">Emergência</span>':""}</td><td class="r mono"><b>${repH(c.total)}</b></td><td class="r mono">${repX(c.e50)}</td><td class="r mono">${repX(c.e100)}</td>${C.val?`<td class="r mono">${brl(c.valor)}</td>`:""}${repExtra(e,C).map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`; }).join("");
   }).join("");
   return `<section class="section"><header><h2>${esc(repHeading(rows))}</h2><span class="muted">${repTitle()} · ${nDias} ${nDias>1?"dias":"dia"} · ${rows.length} OS</span></header>
-  <div class="tablewrap"><table><thead><tr>${head.map((h,i)=>`<th${i>=6&&i<9+(C.val?1:0)?' class="r"':""}>${h}</th>`).join("")}</tr></thead>
+  <div class="tablewrap"><table><thead><tr>${head.map((h,i)=>`<th${i>=6+k&&i<9+k+(C.val?1:0)?' class="r"':""}>${h}</th>`).join("")}</tr></thead>
   <tbody>${body}</tbody>
-  <tfoot><tr style="background:var(--warn-bg)"><td colspan="6">TOTAL</td><td class="r mono">${repH(t.total)}</td><td class="r mono">${repH(t.e50)}</td><td class="r mono">${repH(t.e100)}</td>${C.val?`<td class="r mono">${brl(t.valor)}</td>`:""}${"<td></td>".repeat(nExtra)}</tr></tfoot></table></div>
+  <tfoot><tr style="background:var(--warn-bg)"><td colspan="${6+k}">TOTAL</td><td class="r mono">${repH(t.total)}</td><td class="r mono">${repH(t.e50)}</td><td class="r mono">${repH(t.e100)}</td>${C.val?`<td class="r mono">${brl(t.valor)}</td>`:""}${"<td></td>".repeat(nExtra)}</tr></tfoot></table></div>
   <div class="tablewrap" style="max-width:600px"><table><tbody>${repSummary(t).map((r,i)=>`<tr ${i>=3?'style="font-weight:700"':""}><td>${r[0]}</td><td class="r mono">${fdec(r[1])} h</td><td class="r mono muted">${fh(r[1])}</td>${C.val?`<td class="r mono">${brl(r[2])}</td>`:""}</tr>`).join("")}</tbody></table></div></section>`;
 }
 // fechamentos que caem no período escolhido (inclusive os das planilhas importadas), com os PDFs
@@ -131,7 +131,7 @@ function repText(){
       const hol = holidayName(d.data);
       L.push("", `*${WDL[parseYmd(d.data).getDay()]}, ${fdate(d.data)}${hol?` - Feriado: ${hol}`:""}*`);
       d.rows.forEach(e=>{ const c=calc(e); const x = [c.e50?`${repH(c.e50)} a ${pct50()}`:"", c.e100?`${repH(c.e100)} a ${pct100()}`:""].filter(Boolean).join(", ");
-        L.push(`• OS ${e.os||"s/n"} | ${e.inicio} às ${e.fim} | ${repH(c.total)} h${x?` (extra: ${x})`:""}${repExtra(e,{...C, tid:false}).filter(Boolean).map(z=>" | "+z).join("")}${descRep(e)?"\n   "+descRep(e):""}`); });
+        L.push(`• OS ${e.os||"s/n"} | ${e.inicio} às ${e.fim} | ${repH(c.total)} h${x?` (extra: ${x})`:""}${repExtra(e,C).filter(Boolean).map(z=>" | "+z).join("")}${descRep(e)?"\n   "+descRep(e):""}`); });
     });
     L.push("", "*RESUMO DE HORAS*");
     repSummary(t).forEach(r=>L.push(`${r[0]}: ${repH(r[1])} h${v?` - ${brl(r[2])}`:""}`));
@@ -213,34 +213,34 @@ const SRI = {"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; if(SRI[src]){ s.integrity = SRI[src]; s.crossOrigin = "anonymous"; } s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
 function xlsxSheet(X, rows){
   const days = repDays(rows), cfg = state.cfg, C = repCols(rows), t = sumCalc(rows);
-  const head = repHead(C), nc = head.length, H = m => Math.round(m/60*10000)/10000;
+  const head = repHead(C), nc = head.length, H = m => Math.round(m/60*10000)/10000, k = C.tid ? 1 : 0, ID = k ? [""] : []; // k: coluna do ID logo depois da ORDEM
   const aoa = [[repHeading(rows)], [`${cfg.empresa.nome} - CNPJ ${cfg.empresa.cnpj} - Período: ${repTitle()}`], head];
   const merges = [{s:{r:0,c:0},e:{r:0,c:nc-1}}, {s:{r:1,c:0},e:{r:1,c:nc-1}}];
   days.forEach(d=>{
     const start = aoa.length, list = d.rows.length ? d.rows : [null];
     list.forEach((e,i)=>{
-      if(!e){ aoa.push(["", wdl(d.data), fdate(d.data)]); return; }
+      if(!e){ aoa.push(["", ...ID, wdl(d.data), fdate(d.data)]); return; }
       const c = calc(e);
-      aoa.push([e.os||"", i?"":wdl(d.data), i?"":fdate(d.data), e.inicio, e.fim, descRep(e, C.tid), H(c.total), c.e50?H(c.e50):"", c.e100?H(c.e100):"", ...(C.val?[c.valor]:[]), ...repExtra(e,C)]);
+      aoa.push([e.os||"", ...(k?[e.tracos||""]:[]), i?"":wdl(d.data), i?"":fdate(d.data), e.inicio, e.fim, descRep(e, C.tid), H(c.total), c.e50?H(c.e50):"", c.e100?H(c.e100):"", ...(C.val?[c.valor]:[]), ...repExtra(e,C)]);
     });
-    if(list.length>1){ merges.push({s:{r:start,c:1},e:{r:start+list.length-1,c:1}}, {s:{r:start,c:2},e:{r:start+list.length-1,c:2}}); }
+    if(list.length>1){ merges.push({s:{r:start,c:1+k},e:{r:start+list.length-1,c:1+k}}, {s:{r:start,c:2+k},e:{r:start+list.length-1,c:2+k}}); }
   });
   const first = 4, last = aoa.length, totR = aoa.length;
-  aoa.push(["TOTAL","","","","","", H(t.total), H(t.e50), H(t.e100), ...(C.val?[t.valor]:[])]);
-  merges.push({s:{r:totR,c:0},e:{r:totR,c:5}});
-  aoa.push([]); aoa.push(["RESUMO DE HORAS","","","","","","HORAS",...(C.val?["","","VALOR"]:[])]);
+  aoa.push(["TOTAL",...ID,"","","","","", H(t.total), H(t.e50), H(t.e100), ...(C.val?[t.valor]:[])]);
+  merges.push({s:{r:totR,c:0},e:{r:totR,c:5+k}});
+  aoa.push([]); aoa.push(["RESUMO DE HORAS",...ID,"","","","","","HORAS",...(C.val?["","","VALOR"]:[])]);
   const sumStart = aoa.length;
-  repSummary(t).forEach(r=>aoa.push([r[0],"","","","","",H(r[1]),...(C.val?["","",Math.round(r[2]*100)/100]:[])]));
-  const ws = X.utils.aoa_to_sheet(aoa), valCol = C.val ? 9 : -1;
-  ["G","H","I"].forEach((L,k)=>{ ws[`${L}${totR+1}`] = {t:"n", v:[H(t.total),H(t.e50),H(t.e100)][k], f:`SUM(${L}${first}:${L}${last})`}; });
-  if(C.val) ws[`J${totR+1}`] = {t:"n", v:t.valor, f:`SUM(J${first}:J${last})`};
+  repSummary(t).forEach(r=>aoa.push([r[0],...ID,"","","","","",H(r[1]),...(C.val?["","",Math.round(r[2]*100)/100]:[])]));
+  const ws = X.utils.aoa_to_sheet(aoa), valCol = C.val ? 9+k : -1, L = c => X.utils.encode_col(c+k);
+  [L(6),L(7),L(8)].forEach((col,j)=>{ ws[`${col}${totR+1}`] = {t:"n", v:[H(t.total),H(t.e50),H(t.e100)][j], f:`SUM(${col}${first}:${col}${last})`}; });
+  if(C.val) ws[`${L(9)}${totR+1}`] = {t:"n", v:t.valor, f:`SUM(${L(9)}${first}:${L(9)}${last})`};
   const range = X.utils.decode_range(ws["!ref"]);
-  for(let R=3; R<=range.e.r; R++) for(let Cc=6; Cc<=range.e.c; Cc++){
+  for(let R=3; R<=range.e.r; R++) for(let Cc=6+k; Cc<=range.e.c; Cc++){
     const cell = ws[X.utils.encode_cell({r:R,c:Cc})]; if(!cell || cell.t!=="n") continue;
-    cell.z = (Cc===valCol && R<sumStart) || (R>=sumStart && Cc===9) ? '"R$" #,##0.00' : "0.00";
+    cell.z = (Cc===valCol && R<sumStart) || (R>=sumStart && Cc===9+k) ? '"R$" #,##0.00' : "0.00";
   }
   ws["!merges"] = merges;
-  ws["!cols"] = [10,14,11,8,8,52,8,8,8,...(C.val?[13]:[]),...(C.unid?[16]:[]),...(C.emp?[18]:[]),...(C.prof?[22]:[])].map(w=>({wch:w}));
+  ws["!cols"] = [10,...(k?[12]:[]),14,11,8,8,52,8,8,8,...(C.val?[13]:[]),...(C.unid?[16]:[]),...(C.emp?[18]:[]),...(C.prof?[22]:[])].map(w=>({wch:w}));
   return ws;
 }
 async function repXlsx(){
@@ -642,18 +642,18 @@ async function pdfGroup(doc, rows){
   info.push(["Resumo:", `${nDias} ${nDias>1?"dias trabalhados":"dia trabalhado"} · ${rows.length} ordens de serviço · ${fdec(t.total)} horas`]);
   info.forEach(([a,b])=>{ doc.setFont("helvetica","bold"); doc.text(a,14,y); doc.setFont("helvetica","normal"); doc.text(b,40,y); y+=5; });
   y += 1;
-  const head = [repHead(C)], ncols = head[0].length, body = [], shade = [244,246,249];
+  const head = [repHead(C)], ncols = head[0].length, body = [], shade = [244,246,249], k = C.tid ? 1 : 0; // k: coluna do ID logo depois da ORDEM
   days.forEach(d=>{
     const hol = holidayName(d.data), sun = parseYmd(d.data).getDay()===0, k = Math.max(1,d.rows.length);
     const dia = {content: wdl(d.data)+(hol?`\n${hol}`:""), rowSpan:k, styles:{halign:"center"}}, data = {content: fdate(d.data), rowSpan:k, styles:{halign:"center"}};
-    if(!d.rows.length){ const st = (sun||hol) ? {fillColor:shade} : {}; body.push([{content:"",styles:st}, {...dia, styles:{...dia.styles,...st,textColor:GREY}}, {...data, styles:{...data.styles,...st,textColor:GREY}}, {content:"", colSpan:ncols-3, styles:st}]); return; }
+    if(!d.rows.length){ const st = (sun||hol) ? {fillColor:shade} : {}; body.push([{content:"",styles:st}, ...(k?[{content:"",styles:st}]:[]), {...dia, styles:{...dia.styles,...st,textColor:GREY}}, {...data, styles:{...data.styles,...st,textColor:GREY}}, {content:"", colSpan:ncols-3-k, styles:st}]); return; }
     d.rows.forEach((e,i)=>{ const c = calc(e);
-      body.push([e.os||"-", ...(i===0?[dia,data]:[]), e.inicio, e.fim, descRep(e, C.tid), {content:repH(c.total),styles:{fontStyle:"bold"}}, repX(c.e50), repX(c.e100), ...(C.val?[brl(c.valor)]:[]), ...repExtra(e,C)]); });
+      body.push([e.os||"-", ...(k?[e.tracos||""]:[]), ...(i===0?[dia,data]:[]), e.inicio, e.fim, descRep(e, C.tid), {content:repH(c.total),styles:{fontStyle:"bold"}}, repX(c.e50), repX(c.e100), ...(C.val?[brl(c.valor)]:[]), ...repExtra(e,C)]); });
   });
-  const yellow = {fillColor:[255,240,150], textColor:INK, fontStyle:"bold"}, nExtra = ncols - 9 - (C.val?1:0);
-  const foot = [[{content:"TOTAL",colSpan:6,styles:yellow}, ...[repH(t.total), repH(t.e50), repH(t.e100), ...(C.val?[brl(t.valor)]:[])].map(x=>({content:x,styles:{...yellow,halign:"right"}})), ...Array.from({length:nExtra},()=>({content:"",styles:yellow}))]];
-  const cs = {0:{cellWidth:18}, 1:{cellWidth:22}, 2:{cellWidth:19}, 3:{cellWidth:13,halign:"center"}, 4:{cellWidth:13,halign:"center"}, 6:{cellWidth:15,halign:"right"}, 7:{cellWidth:13,halign:"right"}, 8:{cellWidth:13,halign:"right"}};
-  let ci = 9; if(C.val) cs[ci++] = {cellWidth:24, halign:"right"}; if(C.tid) cs[ci++] = {cellWidth:20, halign:"center"}; if(C.unid) cs[ci++] = {cellWidth:24}; if(C.emp) cs[ci++] = {cellWidth:24}; if(C.prof) cs[ci++] = {cellWidth:30};
+  const yellow = {fillColor:[255,240,150], textColor:INK, fontStyle:"bold"}, nExtra = ncols - 9 - k - (C.val?1:0);
+  const foot = [[{content:"TOTAL",colSpan:6+k,styles:yellow}, ...[repH(t.total), repH(t.e50), repH(t.e100), ...(C.val?[brl(t.valor)]:[])].map(x=>({content:x,styles:{...yellow,halign:"right"}})), ...Array.from({length:nExtra},()=>({content:"",styles:yellow}))]];
+  const cs = {0:{cellWidth:18}, ...(k?{1:{cellWidth:17,halign:"center"}}:{}), [1+k]:{cellWidth:22}, [2+k]:{cellWidth:19}, [3+k]:{cellWidth:13,halign:"center"}, [4+k]:{cellWidth:13,halign:"center"}, [6+k]:{cellWidth:15,halign:"right"}, [7+k]:{cellWidth:13,halign:"right"}, [8+k]:{cellWidth:13,halign:"right"}};
+  let ci = 9+k; if(C.val) cs[ci++] = {cellWidth:24, halign:"right"}; if(C.unid) cs[ci++] = {cellWidth:24}; if(C.emp) cs[ci++] = {cellWidth:24}; if(C.prof) cs[ci++] = {cellWidth:30};
   doc.autoTable({startY:y, head, body, foot, theme:"grid", margin:{left:14,right:14}, showFoot:"lastPage",
     styles:{fontSize:7.8,cellPadding:1.4,textColor:INK,lineColor:[205,213,223],lineWidth:0.2,valign:"middle"},
     headStyles:{fillColor:GREEN,textColor:255,fontStyle:"bold",halign:"center"}, columnStyles:cs});
