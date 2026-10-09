@@ -16,7 +16,8 @@ orçamentos, fechamentos e valores a receber. Derivado do projeto `gaap-gestao`,
 
 | Arquivo | O que é |
 |---|---|
-| `index.html` | Página do sistema |
+| `index.html` | Página inicial para clientes (orçamento pelo WhatsApp); quem tem o app instalado ou chega por link de e-mail vai para `/app` (`redir.js`) |
+| `app.html` | O sistema da equipe, em `/app` (o app instalado abre aqui) |
 | `js/` | A lógica, dividida por assunto e carregada em ordem pelo `index.html`: `base.js` (cálculo de horas, feriados, valores), `dados.js` (Supabase, fila sem internet), `interface.js` (janelas, navegação), `leitura-os.js` (papel/PDF da OS e carteira), `telas.js`, `lancamentos.js`, `relatorios.js` (relatórios, fechamentos, PDF), `financeiro.js`, `ajustes.js`, `acoes.js` (botões; inicia o app) |
 | `vendor/` | Bibliotecas usadas em toda tela (Supabase, jsPDF), guardadas no próprio site para não depender de CDN |
 | `tests/` | Testes automáticos: `node --test tests/*.test.js` (rodam sozinhos no GitHub a cada envio) |

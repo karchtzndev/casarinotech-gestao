@@ -1,7 +1,8 @@
 {
+  "id": "/",
   "name": "CasarinoTech Gestão",
   "short_name": "CasarinoTech",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#15181c",
   "theme_color": "#15181c",
@@ -32,7 +33,6 @@
       "purpose": "maskable"
     }
   ],
-  "id": "/",
   "scope": "/",
   "description": "Ordens de serviço, horas, orçamentos e financeiro da CASARINOTECH"
 }

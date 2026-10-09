@@ -27,7 +27,7 @@
       ]
     },
     {
-      "source": "/(js/.*|aprovar.js|portal.js|style.css|config.js|sw.js)",
+      "source": "/(js/.*|aprovar.js|portal.js|style.css|config.js|sw.js|redir.js|contratar.js|contratar.css|manifest.webmanifest)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -40,6 +40,13 @@
     {
       "path": "/api/ping",
       "schedule": "23 14 * * *"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/contratar",
+      "destination": "/",
+      "permanent": true
     }
   ]
 }
