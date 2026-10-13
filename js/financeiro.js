@@ -62,6 +62,7 @@ function vOrcEdit(){
       <label class="check"><input type="checkbox" data-k="apresentacao" ${o.apresentacao?"checked":""}> Incluir “Quem somos” no PDF</label>
     </div>
     <div class="panel form"><header class="row" style="justify-content:space-between"><h3>Itens</h3><span class="row"><button class="btn sm" data-act="addItem" data-t="mo">+ Mão de obra</button><button class="btn sm" data-act="addItem" data-t="mat">+ Material</button><button class="btn sm" data-act="addItem" data-t="srv">+ Serviço</button></span></header>
+      <label class="check"><input type="checkbox" data-k="matCliente" ${o.matCliente?"checked":""}> Todo o material por conta do cliente (orçamento só da mão de obra; o material vai listado, sem valor)</label>
       <div class="items" id="items">${itemsHtml(o)}</div>
       <div class="grid3"><label class="field"><span>Desconto (%)</span><input data-k="descontoPct" inputmode="decimal" value="${esc(o.descontoPct)}" placeholder="0"></label></div>
       <div class="totals" id="orcTotals">${totalsHtml(o)}</div>
@@ -82,8 +83,10 @@ function itemsHtml(o){
     <label class="field desc"><span>${lab[i.tipo]||"Item"} ${k+1}</span><input data-f="desc" value="${esc(i.desc)}" placeholder="Descrição"></label>
     <label class="field"><span>Un.</span><input data-f="un" value="${esc(i.un)}"></label>
     <label class="field"><span>Qtd.</span><input data-f="qtd" inputmode="decimal" value="${esc(i.qtd)}"></label>
-    <label class="field"><span>Valor unit. (R$)</span><input data-f="valor" inputmode="decimal" value="${esc(i.valor)}"></label>
-    <span class="tot" data-tot="${k}">${brl(numIn(i.qtd)*numIn(i.valor))}</span>
+    ${matDoCliente(o,i) ? `<span class="field"><span>Valor</span><span class="pill info" style="align-self:center">Por conta do cliente</span></span><span class="tot muted" data-tot="${k}">—</span>`
+      : `<label class="field"><span>Valor unit. (R$)</span><input data-f="valor" inputmode="decimal" value="${esc(i.valor)}"></label>
+    <span class="tot" data-tot="${k}">${brl(numIn(i.qtd)*numIn(i.valor))}</span>`}
+    ${i.tipo==="mat" && !o.matCliente ? `<label class="check" style="grid-column:1/-1;margin:0"><input type="checkbox" data-f="cliente" ${i.cliente?"checked":""}> Por conta do cliente</label>` : ""}
     <button class="iconbtn" data-act="delItem" data-i="${k}" aria-label="Remover item">✕</button></div>`).join("");
 }
 function totalsHtml(o){ const T=orcTotals(o); return `<div><span>Subtotal</span><span class="mono">${brl(T.sub)}</span></div>${T.desc?`<div><span>Desconto</span><span class="mono">- ${brl(T.desc)}</span></div>`:""}<div class="grand"><span>Total</span><span>${brl(T.total)}</span></div>`; }
@@ -91,7 +94,8 @@ document.addEventListener("input", e=>{
   if(state.view!=="orcEdit" || !e.target.closest("#orcForm")) return;
   const o = state.orcDraft; const t = e.target;
   if(t.dataset.k){ const v = t.type==="checkbox" ? t.checked : t.value; const p = t.dataset.k.split("."); if(p.length===2) o[p[0]][p[1]] = v; else o[p[0]] = v; }
-  if(t.dataset.f){ const k = +t.closest(".itemrow").dataset.i; o.itens[k][t.dataset.f] = t.value; const el=document.querySelector(`[data-tot="${k}"]`); if(el) el.textContent = brl(numIn(o.itens[k].qtd)*numIn(o.itens[k].valor)); }
+  if(t.dataset.f){ const k = +t.closest(".itemrow").dataset.i; o.itens[k][t.dataset.f] = t.type==="checkbox" ? t.checked : t.value; const el=document.querySelector(`[data-tot="${k}"]`); if(el && !matDoCliente(o, o.itens[k])) el.textContent = brl(numIn(o.itens[k].qtd)*numIn(o.itens[k].valor)); }
+  if(t.type==="checkbox" && (t.dataset.f==="cliente" || t.dataset.k==="matCliente")) $("#items").innerHTML = itemsHtml(o); // mostra/esconde o valor do material
   $("#orcTotals").innerHTML = totalsHtml(o);
   state.orcDirty = true;
 });
