@@ -134,6 +134,21 @@ Deno.serve(async (req) => {
     return json({ acao: "chamado", enviados: n });
   }
 
+  // orçamento respondido pelo cliente no link (aprovado ou recusado): avisa o responsável na hora
+  if (body?.orcamento) {
+    const { data: lk } = await sb.from("orc_links").select("orc_id, snap, resposta").eq("token", String(body.orcamento)).maybeSingle();
+    if (!lk?.resposta) return json({ erro: "orcamento" }, 404);
+    const r: any = lk.resposta, P: any = lk.snap ?? {};
+    const valor = P.opcoes ? (r.opcao === "B" ? P.opcoes.B : P.opcoes.A) : P.total;
+    const { data: ds } = await sb.from("perfis").select("user_id").eq("papel", "dono");
+    const n = await enviar((ds ?? []).map((p: any) => p.user_id), {
+      title: r.aprovado ? `✅ Orçamento ${P.numero ?? ""} aprovado!` : `Orçamento ${P.numero ?? ""} recusado`,
+      body: `${r.nome ?? ""}${P.cliente?.nome ? ` (${P.cliente.nome})` : ""}${r.aprovado ? ` · ${brl(+valor || 0)}${r.opcao ? ` · opção ${r.opcao}` : ""}` : r.obs ? ` · ${r.obs}` : ""}`.slice(0, 220),
+      url: "/app", tag: "orcamento-" + lk.orc_id,
+    });
+    return json({ acao: "orcamento", enviados: n });
+  }
+
   let { dia, dow, min } = agoraBrasilia();
   if (body?.simular && /^\d{4}-\d{2}-\d{2}$/.test(body?.dia ?? "")) { dia = body.dia; dow = new Date(dia + "T12:00:00Z").getUTCDay(); }
   const { data: cfgRow } = await sb.from("config").select("data").eq("id", "main").maybeSingle();
