@@ -579,7 +579,7 @@ function pdfHeader(doc, title, sub){
   try{ doc.addImage(LOGO,"JPEG",14,9,24,24); }catch(e){}
   doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text(E.nome||"",42,16);
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(...GREY);
-  doc.text(`CNPJ: ${E.cnpj||""}`,42,21.5); doc.text(`${E.email||""}  |  ${E.telefone||""}`,42,26); doc.text(`Manutenção e montagem industrial  |  ${E.cidade||""}`,42,30.5);
+  [E.cnpj ? `CNPJ: ${E.cnpj}` : "", [E.email, E.telefone].filter(Boolean).join("  |  "), ["Manutenção e montagem industrial", E.cidade].filter(Boolean).join("  |  ")].filter(Boolean).forEach((t,i)=>doc.text(t,42,21.5+i*4.5)); // só o que estiver preenchido
   doc.setTextColor(...NAVY); doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.text(title,R,16,{align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(...GREY); (Array.isArray(sub)?sub:[sub]).forEach((s,i)=>doc.text(s,R,21.5+i*4.5,{align:"right"}));
   doc.setDrawColor(...GREEN); doc.setLineWidth(0.8); doc.line(14,36,R,36);
@@ -587,13 +587,13 @@ function pdfHeader(doc, title, sub){
 }
 function pdfFooter(doc){
   const n = doc.getNumberOfPages(), E = state.cfg.empresa, R = pw(doc)-14, Y = ph(doc)-8;
-  for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); doc.text(`${E.nome} - CNPJ ${E.cnpj}`,14,Y); doc.text(`Página ${i} de ${n}`,R,Y,{align:"right"}); }
+  for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); doc.text(`${E.nome}${E.cnpj?` - CNPJ ${E.cnpj}`:""}`,14,Y); doc.text(`Página ${i} de ${n}`,R,Y,{align:"right"}); }
 }
 function ensure(doc,y,need){ if(y+need>ph(doc)-17){ doc.addPage(); return 20; } return y; }
 function signature(doc, y, left, right){
   y = ensure(doc, y, 40);
   const R = pw(doc)-14, mid = pw(doc)/2;
-  doc.setFont("helvetica","italic"); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(`${state.cfg.empresa.cidade||""}, ${extenso()}.`,R,y,{align:"right"}); y += 22;
+  doc.setFont("helvetica","italic"); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(`${state.cfg.empresa.cidade ? state.cfg.empresa.cidade+", " : ""}${extenso()}.`,R,y,{align:"right"}); y += 22;
   doc.setDrawColor(...GREY); doc.setLineWidth(0.3); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
   if(right){ doc.line(14,y,mid-11,y); doc.line(mid+11,y,R,y); doc.text(left,(14+mid-11)/2,y+4.5,{align:"center"}); doc.text(right,(mid+11+R)/2,y+4.5,{align:"center"}); }
   else { doc.line(mid-45,y,mid+45,y); doc.text(left,mid,y+4.5,{align:"center"}); }
@@ -705,64 +705,128 @@ async function repPdf(){
   pdfFooter(doc);
   offerFile(`controle-ordens-${repFileTag()}.pdf`, doc.output("blob"));
 }
-function orcPdf(o){
+// texto para o PDF: as fontes padrão não têm setas, emojis e alguns símbolos
+const pdfTxt = t => String(t??"").replace(/→/g, "->").replace(/[✓✔]/g, "-").replace(/[^\x00-\xFF–—‘’“”•€]/g, "");
+const sobreEmpresa = () => String(state.cfg.empresa.sobre||"").replace(/\s*Edite este texto em Ajustes.*$/s, "").trim();
+// QR code desenhado direto no PDF (nítido em qualquer impressão)
+function pdfQR(doc, texto, x, y, tam){
+  if(!texto || !window.qrcode) return false;
+  try{ const q = window.qrcode(0, "M"); q.addData(texto); q.make(); const n = q.getModuleCount(), c = tam/n;
+    doc.setFillColor(255,255,255); doc.rect(x-1, y-1, tam+2, tam+2, "F"); doc.setFillColor(0,0,0);
+    for(let r=0; r<n; r++) for(let k=0; k<n; k++) if(q.isDark(r,k)) doc.rect(x+k*c, y+r*c, c+0.02, c+0.02, "F");
+    return true; }catch(e){ return false; }
+}
+async function orcPdf(o){
   const doc = pdfDoc(); if(!doc) return;
-  const T = orcTotals(o), E = state.cfg.empresa, val = orcValidade(o);
-  let y = pdfHeader(doc, "PROPOSTA DE ORÇAMENTO", [`Nº ${o.numero||"-"}`, `Emissão: ${fdate(o.data)}`]);
+  const T = orcTotals(o), E = state.cfg.empresa, val = orcValidade(o), op = orcOpcoes(o), R = pw(doc)-14, W = R-14;
+  let y = pdfHeader(doc, "PROPOSTA DE ORÇAMENTO", [`Nº ${o.numero||"-"}`, `Emissão: ${fdate(o.data)}`, ...(val?[`Válida até ${fdate(val)}`]:[])]);
   const C = o.cliente||{};
-  doc.setFillColor(240,244,238); doc.roundedRect(14,y-4,182,24,2,2,"F");
+  doc.setFillColor(238,243,248); doc.roundedRect(14,y-4,W,24,2,2,"F");
   doc.setFontSize(8); doc.setTextColor(...GREY); doc.setFont("helvetica","bold"); doc.text("CLIENTE",18,y+0.5);
-  doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(C.nome||"-",18,y+6);
+  doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(pdfTxt(C.nome||"-"),18,y+6);
   doc.setFont("helvetica","normal"); doc.setFontSize(8.8);
   const l2 = [C.documento?`CNPJ/CPF: ${C.documento}`:"", C.cidade||""].filter(Boolean).join("   |   ");
   const l3 = [C.contato?`A/C: ${C.contato}`:"", C.telefone||"", C.email||""].filter(Boolean).join("   |   ");
-  if(l2) doc.text(l2,18,y+11); if(l3) doc.text(l3,18,y+15.5);
+  [l2, l3].filter(Boolean).forEach((l,i)=>doc.text(pdfTxt(l),18,y+11+i*4.5)); // sem linha em branco quando faltar um dado
   y += 28;
+  const titulo = t => { y = ensure(doc, y, 14); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...NAVY); doc.text(t,14,y); y += 5; };
   const block = (title, text) => {
-    if(!text) return;
-    doc.setFont("helvetica","normal"); doc.setFontSize(9.2);
-    const lines = doc.splitTextToSize(text, 182);
-    y = ensure(doc, y, 12);
-    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...NAVY); doc.text(title,14,y); y+=5;
+    if(!text) return; titulo(title);
     doc.setFont("helvetica","normal"); doc.setFontSize(9.2); doc.setTextColor(...INK);
-    lines.forEach(l=>{ y = ensure(doc,y,5); doc.text(l,14,y); y+=4.4; }); y+=3;
+    doc.splitTextToSize(pdfTxt(text), W).forEach(l=>{ y = ensure(doc,y,5); doc.text(l,14,y); y+=4.4; }); y+=3;
   };
-  if(o.titulo){ doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(...INK); const tl=doc.splitTextToSize(`Objeto: ${o.titulo}`,182); tl.forEach(l=>{doc.text(l,14,y); y+=5.5;}); y+=2; }
-  if(o.apresentacao) block("Quem somos", E.sobre);
+  if(o.titulo){ doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(...INK); doc.splitTextToSize(pdfTxt(`Objeto: ${o.titulo}`),W).forEach(l=>{doc.text(l,14,y); y+=5.5;}); y+=2; }
+  if(o.apresentacao) block("Quem somos", sobreEmpresa());
   block("Escopo dos serviços", o.escopo);
+  // itens com valor (na opção A entram também os materiais que a opção B deixa para o cliente)
   const todos = (o.itens||[]).filter(i=>i.desc||numIn(i.valor)), doCliente = todos.filter(i=>matDoCliente(o,i)), itens = todos.filter(i=>!matDoCliente(o,i));
   y = ensure(doc,y,30);
   doc.autoTable({startY:y, theme:"grid", margin:{left:14,right:14},
     head:[["Item","Descrição","Un.","Qtd.","Valor unit.","Total"]],
-    body: itens.map((i,k)=>[String(k+1), i.desc||"", i.un||"", String(numIn(i.qtd)).replace(".",","), brl(numIn(i.valor)), brl(numIn(i.qtd)*numIn(i.valor))]),
+    body: itens.map((i,k)=>[String(k+1), pdfTxt(i.desc||"")+(op && i.tipo==="mat" ? "  (só na opção A)" : ""), pdfTxt(i.un||""), String(numIn(i.qtd)).replace(".",","), brl(numIn(i.valor)), brl(numIn(i.qtd)*numIn(i.valor))]),
     styles:{fontSize:8.8,cellPadding:2,textColor:INK,lineColor:[210,217,226],lineWidth:0.2,valign:"middle"},
     headStyles:{fillColor:GREEN,textColor:255}, columnStyles:{0:{cellWidth:12,halign:"center"},2:{cellWidth:14,halign:"center"},3:{cellWidth:16,halign:"right"},4:{cellWidth:28,halign:"right"},5:{cellWidth:30,halign:"right"}}});
-  y = doc.lastAutoTable.finalY + 2;
-  const tot = [["Subtotal", brl(T.sub)]];
-  if(T.desc) tot.push([`Desconto (${String(numIn(o.descontoPct)).replace(".",",")}%)`, "- "+brl(T.desc)]);
-  tot.push([{content:"VALOR TOTAL",styles:{fontStyle:"bold",fontSize:10.5}},{content:brl(T.total),styles:{fontStyle:"bold",fontSize:10.5,textColor:GREEN}}]);
-  doc.autoTable({startY:y, theme:"plain", margin:{left:120,right:14}, body:tot, styles:{fontSize:9.2,cellPadding:1.4,textColor:INK}, columnStyles:{1:{halign:"right"}}});
-  y = doc.lastAutoTable.finalY + 7;
+  y = doc.lastAutoTable.finalY + 4;
+  // valor em destaque: uma caixa (ou duas, quando há as opções A e B)
+  const caixa = (x, w, rotulo, sub, valor, forte) => {
+    doc.setFillColor(...(forte ? NAVY : [238,243,248])); doc.roundedRect(x, y, w, 22, 2, 2, "F");
+    doc.setTextColor(...(forte ? [255,255,255] : NAVY)); doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text(rotulo, x+4, y+6);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.8); if(sub) doc.text(doc.splitTextToSize(sub, w-8)[0], x+4, y+10.5);
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text(brl(valor), x+w-4, y+18, {align:"right"}); };
+  y = ensure(doc, y, 32);
+  if(T.desc){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(`Subtotal ${brl(T.sub)}   ·   Desconto (${String(numIn(o.descontoPct)).replace(".",",")}%) - ${brl(T.desc)}`, R, y, {align:"right"}); y += 4; }
+  if(op){ const w = (W-6)/2; caixa(14, w, "OPÇÃO A", "Com todo o material incluso", op.A, true); caixa(14+w+6, w, "OPÇÃO B", "Material por conta do cliente", op.B, false); y += 28; }
+  else { caixa(R-90, 90, "VALOR TOTAL", o.matCliente || doCliente.length ? "Material por conta do cliente" : "", T.total, true); y += 28; }
   if(doCliente.length){ // material fornecido pelo cliente: só descrição e quantidade, fora do valor
-    y = ensure(doc, y, 30);
-    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...NAVY); doc.text("MATERIAL POR CONTA DO CLIENTE", 14, y); y += 4.5;
+    titulo("MATERIAL POR CONTA DO CLIENTE");
     doc.setFont("helvetica","normal"); doc.setFontSize(8.6); doc.setTextColor(...INK);
-    doc.splitTextToSize("Os materiais abaixo serão fornecidos pelo cliente e não estão incluídos no valor desta proposta.", 182).forEach(l=>{ doc.text(l, 14, y); y += 4; }); y += 1;
-    doc.autoTable({startY:y, theme:"grid", margin:{left:14,right:14},
-      head:[["Item","Descrição","Un.","Qtd."]],
-      body: doCliente.map((i,k)=>[String(k+1), i.desc||"", i.un||"", String(numIn(i.qtd)).replace(".",",")]),
+    doc.splitTextToSize("Os materiais abaixo serão fornecidos pelo cliente e não estão incluídos no valor desta proposta.", W).forEach(l=>{ doc.text(l, 14, y); y += 4; }); y += 1;
+    doc.autoTable({startY:y, theme:"grid", margin:{left:14,right:14}, head:[["Item","Descrição","Un.","Qtd."]],
+      body: doCliente.map((i,k)=>[String(k+1), pdfTxt(i.desc||""), pdfTxt(i.un||""), String(numIn(i.qtd)).replace(".",",")]),
       styles:{fontSize:8.8,cellPadding:2,textColor:INK,lineColor:[210,217,226],lineWidth:0.2,valign:"middle"},
       headStyles:{fillColor:[236,240,245],textColor:INK}, columnStyles:{0:{cellWidth:12,halign:"center"},2:{cellWidth:14,halign:"center"},3:{cellWidth:20,halign:"right"}}});
     y = doc.lastAutoTable.finalY + 7;
   }
+  // o que está e o que não está incluso, lado a lado
+  const lista = t => String(t||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const inc = lista(o.incluso), nao = lista(o.naoIncluso);
+  if(inc.length || nao.length){
+    y = ensure(doc, y, 20);
+    doc.autoTable({startY:y, theme:"plain", margin:{left:14,right:14},
+      head:[[...(inc.length?[{content:"O QUE ESTÁ INCLUSO", styles:{textColor:[31,122,63]}}]:[]), ...(nao.length?[{content:"O QUE NÃO ESTÁ INCLUSO", styles:{textColor:[179,38,30]}}]:[])]],
+      body: Array.from({length:Math.max(inc.length, nao.length)}, (_,k)=>[...(inc.length?[inc[k]?`+  ${pdfTxt(inc[k])}`:""]:[]), ...(nao.length?[nao[k]?`-  ${pdfTxt(nao[k])}`:""]:[])]),
+      styles:{fontSize:8.8,cellPadding:1.2,textColor:INK}, headStyles:{fontStyle:"bold",fontSize:9}});
+    y = doc.lastAutoTable.finalY + 6;
+  }
   const cond = [];
-  if(doCliente.length) cond.push(["Materiais", "Por conta do cliente (não incluídos no valor desta proposta)"]);
+  if(op) cond.push(["Opções", "A: material fornecido pela "+pdfTxt(E.nome||"empresa")+". B: os materiais da tabela acima ficam por conta do cliente."]);
+  else if(doCliente.length) cond.push(["Materiais", "Por conta do cliente (não incluídos no valor desta proposta)"]);
   if(o.pagamento) cond.push(["Condições de pagamento", o.pagamento]);
+  if(numIn(o.sinalPct)>0) cond.push(["Sinal na aprovação", `${String(numIn(o.sinalPct)).replace(".",",")}%${op ? " do valor da opção escolhida" : ` = ${brl(T.total*numIn(o.sinalPct)/100)}`}`]);
   if(o.prazo) cond.push(["Prazo de execução", o.prazo]);
   if(val) cond.push(["Validade da proposta", `${o.validadeDias} dias (até ${fdate(val)})`]);
+  if(o.garantia) cond.push(["Garantia", o.garantia]);
+  if(o.seguranca) cond.push(["Segurança", o.seguranca]);
   if(o.obs) cond.push(["Observações", o.obs]);
-  if(cond.length){ y = ensure(doc,y,20); doc.autoTable({startY:y, theme:"plain", margin:{left:14,right:14}, body:cond, styles:{fontSize:9,cellPadding:1.4,textColor:INK}, columnStyles:{0:{fontStyle:"bold",cellWidth:46,textColor:NAVY}}}); y = doc.lastAutoTable.finalY + 6; }
-  signature(doc, y+4, `${E.nome}${E.responsavel?" - "+E.responsavel:""}`, `De acordo - ${C.nome||"Cliente"}`);
+  if(cond.length){ y = ensure(doc,y,20); doc.autoTable({startY:y, theme:"plain", margin:{left:14,right:14}, body:cond.map(([a,b])=>[a, pdfTxt(b)]), styles:{fontSize:9,cellPadding:1.4,textColor:INK}, columnStyles:{0:{fontStyle:"bold",cellWidth:46,textColor:NAVY}}}); y = doc.lastAutoTable.finalY + 6; }
+  // Pix do sinal e aprovação pelo celular, com QR codes
+  const sinal = numIn(o.sinalPct), pix = E.pix && sinal>0 ? pixPayload({chave:E.pix, nome:E.nome, cidade:E.cidade, valor: op ? 0 : T.total*sinal/100, txid:"ORC"+(o.numero||"")}) : "";
+  const link = o.linkToken ? `${location.origin}/orcamento#t=${o.linkToken}` : "";
+  if(pix || link){
+    y = ensure(doc, y, 44); const w = pix && link ? (W-6)/2 : W; let x = 14;
+    const qrBox = (titulo, linhas, texto) => { doc.setDrawColor(210,217,226); doc.setLineWidth(0.3); doc.roundedRect(x, y, w, 38, 2, 2);
+      pdfQR(doc, texto, x+3, y+3, 32);
+      doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(...NAVY); doc.text(titulo, x+39, y+8);
+      doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...INK); let yy = y+13;
+      linhas.forEach(l=>doc.splitTextToSize(pdfTxt(l), w-42).forEach(t=>{ if(yy < y+36){ doc.text(t, x+39, yy); yy += 3.6; } })); x += w+6; };
+    if(pix) qrBox("PIX DO SINAL", [op ? `Sinal de ${String(sinal).replace(".",",")}% da opção escolhida (informe o valor ao pagar).` : `Sinal de ${String(sinal).replace(".",",")}%: ${brl(T.total*sinal/100)}`, `Chave: ${E.pix}`, "Abra o app do banco > Pix > Ler QR code."], pix);
+    if(link) qrBox("APROVE PELO CELULAR", ["Aponte a câmera para ver a proposta e aprovar com sua assinatura.", link.replace(/^https?:\/\//, "").slice(0, 60)+"…"], link);
+    y += 44;
+  }
+  // assinaturas: se o cliente já aprovou pelo link, a assinatura dele vai no lugar
+  const r = o.respostaCliente;
+  if(r && r.aprovado && r.assinatura){
+    y = ensure(doc, y, 48); const mid = pw(doc)/2;
+    doc.setFont("helvetica","italic"); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(`Aprovado pelo cliente em ${fdate(String(r.em||"").slice(0,10))}${r.opcao?` (opção ${r.opcao})`:""}.`, R, y, {align:"right"}); y += 6;
+    try{ doc.addImage(r.assinatura, r.assinatura.startsWith("data:image/png") ? "PNG" : "JPEG", mid+20, y, 60, 16); }catch(e){}
+    y += 18; doc.setDrawColor(...GREY); doc.setLineWidth(0.3); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+    doc.line(14,y,mid-11,y); doc.line(mid+11,y,R,y);
+    doc.text(pdfTxt(`${E.nome}${E.responsavel?" - "+E.responsavel:""}`),(14+mid-11)/2,y+4.5,{align:"center"}); doc.text(pdfTxt(`${r.nome}${r.documento?" - "+r.documento:""} (${C.nome||"Cliente"})`),(mid+11+R)/2,y+4.5,{align:"center"});
+  } else signature(doc, y+4, pdfTxt(`${E.nome}${E.responsavel?" - "+E.responsavel:""}`), pdfTxt(`De acordo - ${C.nome||"Cliente"}`));
+  // fotos da visita técnica
+  if((o.fotos||[]).length){
+    toast("Montando o PDF com as fotos…");
+    doc.addPage(); y = pdfHeader(doc, "FOTOS DA VISITA TÉCNICA", [`Proposta Nº ${o.numero||"-"}`]) + 2;
+    const cols = 2, gap = 6, bw = (W-gap*(cols-1))/cols, bh = bw*0.72; let col = 0;
+    for(const id of o.fotos){
+      if(col===0 && y + bh > ph(doc)-17){ doc.addPage(); y = 20; }
+      const x = 14 + col*(bw+gap), im = await imgData(id);
+      doc.setDrawColor(205,212,201); doc.setLineWidth(0.2); doc.rect(x, y, bw, bh);
+      if(im){ const k = Math.min(bw/im.w, bh/im.h), w = im.w*k, h = im.h*k; try{ doc.addImage(im.url, im.fmt, x+(bw-w)/2, y+(bh-h)/2, w, h); }catch(err){} }
+      else { doc.setFontSize(8); doc.setTextColor(...GREY); doc.text("Foto indisponível", x+bw/2, y+bh/2, {align:"center"}); }
+      col++; if(col===cols){ col = 0; y += bh + 6; }
+    }
+  }
   pdfFooter(doc);
   offerFile(`orcamento-${o.numero||"rascunho"}-${(C.nome||"cliente").replace(/[^\wÀ-ú]+/g,"-").slice(0,30)}.pdf`, doc.output("blob"));
 }

@@ -209,6 +209,7 @@ tr.click:hover td{background:var(--surface-2)}
 .preview .line{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .preview .tot{font-weight:700;border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
 .warnbox{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:.88rem}
+.okbox{background:var(--good-bg);color:var(--good);border-radius:8px;padding:8px 10px;font-size:.88rem}
 
 /* modal */
 .modal{position:fixed;inset:0;z-index:50;background:rgba(8,12,16,.5);display:grid;place-items:end center;padding:0}

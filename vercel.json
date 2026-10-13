@@ -27,7 +27,7 @@
       ]
     },
     {
-      "source": "/(js/.*|aprovar.js|portal.js|style.css|config.js|sw.js|redir.js|contratar.js|contratar.css|manifest.webmanifest)",
+      "source": "/(js/.*|aprovar.js|portal.js|style.css|config.js|sw.js|redir.js|contratar.js|orcamento.js|orcamento.css|contratar.css|manifest.webmanifest)",
       "headers": [
         {
           "key": "Cache-Control",

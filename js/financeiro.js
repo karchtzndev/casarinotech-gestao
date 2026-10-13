@@ -26,7 +26,36 @@ function vOrcamentos(){
   ${list.length?`<div class="list">${list.map(orcCard).join("")}</div>`:`<div class="empty"><b>Nenhum orçamento ${f==="todos"?"ainda":"com esse status"}</b>Crie uma proposta com itens de mão de obra, material e serviços.</div>`}`;
 }
 function nextNumero(){ const y = new Date().getFullYear(); const n = state.orc.map(o=>o.numero||"").filter(s=>s.startsWith(y+"-")).map(s=>+s.split("-")[1]||0); return `${y}-${String((n.length?Math.max(...n):0)+1).padStart(3,"0")}`; }
-function newOrcDraft(){ return {cliente:{nome:"",documento:"",contato:"",telefone:"",email:"",cidade:""}, titulo:"", escopo:"", itens:[{tipo:"mo",desc:"Mão de obra - montagem/manutenção mecânica",un:"h",qtd:"8",valor:String(state.cfg.valorHora)}], descontoPct:"", pagamento:"50% na aprovação e 50% na conclusão dos serviços", prazo:"", validadeDias:15, obs:"", status:"rascunho", data:today(), apresentacao:true}; }
+function newOrcDraft(){ return {cliente:{nome:"",documento:"",contato:"",telefone:"",email:"",cidade:""}, titulo:"", escopo:"", itens:[{tipo:"mo",desc:"Mão de obra - montagem/manutenção mecânica",un:"h",qtd:"8",valor:String(state.cfg.valorHora)}], descontoPct:"", pagamento:"50% na aprovação e 50% na conclusão dos serviços", prazo:"", validadeDias:15, obs:"", status:"rascunho", data:today(), apresentacao:true,
+  incluso:"", naoIncluso:"", garantia:GARANTIA_PADRAO, seguranca:SEGURANCA_PADRAO, sinalPct:"50", opcaoB:false, fotos:[]}; }
+const GARANTIA_PADRAO = "90 dias para o serviço executado, a partir da conclusão.";
+const SEGURANCA_PADRAO = "Equipe com treinamentos e documentação de segurança exigidos pela contratante em dia. EPIs por conta da CasarinoTech.";
+/* modelos prontos: o orçamento já nasce com objeto, escopo, itens e o que está ou não incluso */
+const MODELOS_ORC = [
+  {nome:"Recuperação de caixa d'água", dados:{titulo:"Recuperação de caixa d'água metálica", escopo:"Inspeção e recuperação da caixa d'água metálica: remoção das partes corroídas, reforço e troca de chapas onde necessário, soldagem, teste de estanqueidade e pintura de proteção.",
+    itens:[{tipo:"mo",desc:"Mão de obra - soldador e ajudante",un:"h",qtd:"16"},{tipo:"mat",desc:"Chapa de aço",un:"pç",qtd:"1"},{tipo:"mat",desc:"Eletrodo",un:"kg",qtd:"5"},{tipo:"mat",desc:"Tinta de proteção (epóxi)",un:"gl",qtd:"2"}],
+    incluso:"Mão de obra especializada\nFerramentas e máquina de solda\nTeste de estanqueidade", naoIncluso:"Esvaziamento e limpeza da caixa\nAndaime, içamento e plataforma elevatória\nServiços de alvenaria e hidráulica"}},
+  {nome:"Estrutura metálica", dados:{titulo:"Fabricação e montagem de estrutura metálica", escopo:"Fabricação e montagem de estrutura metálica conforme medidas levantadas na visita: corte, soldagem, montagem no local, fixação e pintura de acabamento.",
+    itens:[{tipo:"mo",desc:"Mão de obra - fabricação e montagem",un:"h",qtd:"24"},{tipo:"mat",desc:"Perfis e cantoneiras de aço",un:"m",qtd:"1"},{tipo:"mat",desc:"Chumbadores e parafusos",un:"cj",qtd:"1"},{tipo:"mat",desc:"Tinta de acabamento",un:"gl",qtd:"1"}],
+    incluso:"Projeto de fabricação simples (croqui)\nFerramentas e máquina de solda\nMontagem e fixação no local", naoIncluso:"Projeto estrutural com ART de engenheiro\nObras civis (bases e concreto)\nIçamento com guindaste"}},
+  {nome:"Manutenção corretiva", dados:{titulo:"Manutenção corretiva", escopo:"Diagnóstico e correção da falha no equipamento: desmontagem, substituição das peças danificadas, montagem, alinhamento e teste de funcionamento.",
+    itens:[{tipo:"mo",desc:"Mão de obra - mecânico de manutenção",un:"h",qtd:"8"},{tipo:"mat",desc:"Peças de reposição (conforme diagnóstico)",un:"vb",qtd:"1"}],
+    incluso:"Diagnóstico da falha\nDesmontagem, montagem e alinhamento\nTeste de funcionamento", naoIncluso:"Peças não listadas neste orçamento\nServiços elétricos e de automação"}}
+];
+const modelosOrc = () => [...MODELOS_ORC, ...(state.cfg.modelosOrc||[])];
+// Opção B: o mesmo orçamento com todo o material por conta do cliente (só faz sentido se houver material com valor)
+const temMatComValor = o => (o.itens||[]).some(i=>i.tipo==="mat" && !i.cliente && numIn(i.valor)>0);
+const orcOpcoes = o => (o.opcaoB && !o.matCliente && temMatComValor(o)) ? {A:orcTotals(o).total, B:orcTotals({...o, matCliente:true}).total} : null;
+/* o que vai para o link do cliente: uma cópia da proposta como foi enviada */
+function orcSnap(o){
+  const T = orcTotals(o), op = orcOpcoes(o), val = orcValidade(o), E = state.cfg.empresa, sinal = numIn(o.sinalPct);
+  return {numero:o.numero||"", data:o.data, validade:val||"", titulo:o.titulo||"", cliente:{nome:o.cliente?.nome||"", cidade:o.cliente?.cidade||"", contato:o.cliente?.contato||""},
+    escopo:o.escopo||"", incluso:o.incluso||"", naoIncluso:o.naoIncluso||"", garantia:o.garantia||"", seguranca:o.seguranca||"", prazo:o.prazo||"", pagamento:o.pagamento||"", obs:o.obs||"",
+    itens:(o.itens||[]).filter(i=>i.desc||numIn(i.valor)).map(i=>{ const cli = matDoCliente(o,i); return {tipo:i.tipo, desc:i.desc||"", un:i.un||"", qtd:numIn(i.qtd), valor:cli?null:numIn(i.valor), total:cli?null:Math.round(numIn(i.qtd)*numIn(i.valor)*100)/100, cliente:cli}; }),
+    subtotal:T.sub, desconto:T.desc, descontoPct:numIn(o.descontoPct), total:T.total, opcoes:op, sinalPct:sinal,
+    pix: E.pix && sinal>0 ? pixPayload({chave:E.pix, nome:E.nome, cidade:E.cidade, valor: op ? 0 : T.total*sinal/100, txid:"ORC"+(o.numero||"")}) : "",
+    responsavel:E.responsavel||""};
+}
 function orcAndamento(o){
   const prev = (o.itens||[]).filter(i=>i.tipo==="mo" || String(i.un||"").trim().toLowerCase()==="h").reduce((s,i)=>s+numIn(i.qtd),0);
   const ents = state.ap.filter(e=>e.orcId===o.id), h = sumCalc(ents).total/60, cu = custoSum(ents) + state.desp.filter(x=>x.orcId===o.id).reduce((s,x)=>s+despValor(x),0);
@@ -39,6 +68,8 @@ function vOrcEdit(){
   return `<div class="pagehead"><div><span class="eyebrow">${o.id?`Orçamento Nº ${esc(o.numero)}`:"Novo orçamento"}</span><h1>${esc(o.titulo||"Proposta")}</h1></div>
     <div class="row"><button class="btn" data-act="nav" data-view="orcamentos">Voltar</button><button class="btn" data-act="orcPdf">Salvar e baixar PDF</button><button class="btn primary" data-act="saveOrc">Salvar</button></div></div>
   <div class="form" id="orcForm">
+    ${o.respostaCliente ? (r => `<div class="panel ${r.aprovado?"okbox":"warnbox"}" style="margin:0"><b>${r.aprovado?"✅ Aprovado pelo cliente":"❌ Recusado pelo cliente"}</b> · ${esc(r.nome||"")}${r.documento?` (${esc(r.documento)})`:""} em ${fdate(String(r.em||"").slice(0,10))}${r.opcao?` · escolheu a <b>Opção ${esc(r.opcao)}</b>${r.opcao==="B"?" (material por conta do cliente)":""}`:""}${r.obs?`<br><span class="muted">“${esc(r.obs)}”</span>`:""}</div>`)(o.respostaCliente) : ""}
+    ${!o.id ? `<div class="panel form"><h3>Começar de um modelo</h3><div class="row" style="flex-wrap:wrap">${modelosOrc().map((m,k)=>`<button type="button" class="btn sm" data-act="orcModelo" data-k="${k}">${esc(m.nome)}</button>`).join("")}</div><p class="muted" style="margin:0;font-size:.85rem">Preenche objeto, escopo, itens e o que está ou não incluso. Depois é só ajustar quantidades e valores.</p></div>` : ""}
     ${and?`<div class="panel form"><header class="row" style="justify-content:space-between"><h3>Andamento do serviço</h3><button class="btn sm primary" data-act="orcLancar" data-id="${esc(o.id)}">Lançar horas neste serviço</button></header>
       <div class="summary" style="margin:0"><span>Mão de obra prevista <b>${fdec(and.prev*60)} h</b></span><span>Lançada <b>${fdec(and.h*60)} h</b></span>${and.pct!=null?`<span><b>${and.pct}%</b> usada</span>`:""}${temCustos()?`<span>Custo da equipe <b>${brl(and.cu)}</b></span><span>Valor do orçamento − equipe <b>${brl(orcTotals(o).total-and.cu)}</b></span>`:""}</div>
       ${and.pct!=null?`<div class="bar ${and.pct>100?"over":""}"><i style="width:${Math.min(100,and.pct)}%"></i></div>`:""}
@@ -59,20 +90,35 @@ function vOrcEdit(){
       <label class="field"><span>Validade (dias)</span><input type="number" min="1" data-k="validadeDias" value="${esc(o.validadeDias)}"></label>
       <label class="field"><span>Status</span><select data-k="status">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${o.status===k?"selected":""}>${v[0]}</option>`).join("")}</select></label></div>
       <label class="field"><span>Escopo dos serviços</span><textarea data-k="escopo" rows="4" placeholder="Descreva o que será executado, o que está incluso e o que não está.">${esc(o.escopo)}</textarea></label>
+      <div class="grid2"><label class="field"><span>O que está incluso (um por linha)</span><textarea data-k="incluso" rows="4" placeholder="Ex.: Mão de obra especializada&#10;Ferramentas e máquina de solda">${esc(o.incluso||"")}</textarea></label>
+      <label class="field"><span>O que não está incluso (um por linha)</span><textarea data-k="naoIncluso" rows="4" placeholder="Ex.: Andaime e içamento&#10;Obras civis">${esc(o.naoIncluso||"")}</textarea></label></div>
+      <div class="grid2"><label class="field"><span>Garantia</span><input data-k="garantia" value="${esc(o.garantia??"")}"></label>
+      <label class="field"><span>Segurança</span><input data-k="seguranca" value="${esc(o.seguranca??"")}"></label></div>
       <label class="check"><input type="checkbox" data-k="apresentacao" ${o.apresentacao?"checked":""}> Incluir “Quem somos” no PDF</label>
+    </div>
+    <div class="panel form"><header class="row" style="justify-content:space-between"><h3>Fotos da visita técnica</h3><label class="btn sm">📷 Adicionar fotos<input type="file" id="orc-foto" accept="image/*" multiple hidden></label></header>
+      <div class="thumbs" id="orc-thumbs">${orcThumbs(o)}</div>
+      ${(o.fotos||[]).length ? "" : `<p class="muted" style="margin:0;font-size:.85rem">Fotos do problema (vazamento, peça gasta, local da montagem) vão no PDF e passam confiança ao cliente.</p>`}
     </div>
     <div class="panel form"><header class="row" style="justify-content:space-between"><h3>Itens</h3><span class="row"><button class="btn sm" data-act="addItem" data-t="mo">+ Mão de obra</button><button class="btn sm" data-act="addItem" data-t="mat">+ Material</button><button class="btn sm" data-act="addItem" data-t="srv">+ Serviço</button></span></header>
       <label class="check"><input type="checkbox" data-k="matCliente" ${o.matCliente?"checked":""}> Todo o material por conta do cliente (orçamento só da mão de obra; o material vai listado, sem valor)</label>
+      <label class="check" id="orc-opb" ${!o.matCliente && temMatComValor(o)?"":"hidden"}><input type="checkbox" data-k="opcaoB" ${o.opcaoB?"checked":""}> Mostrar duas opções para o cliente escolher: <b>A</b> com material e <b>B</b> com o material por conta dele</label>
       <div class="items" id="items">${itemsHtml(o)}</div>
       <div class="grid3"><label class="field"><span>Desconto (%)</span><input data-k="descontoPct" inputmode="decimal" value="${esc(o.descontoPct)}" placeholder="0"></label></div>
       <div class="totals" id="orcTotals">${totalsHtml(o)}</div>
     </div>
     <div class="panel form"><h3>Condições</h3>
+      <div class="grid3"><label class="field"><span>Sinal na aprovação (%)</span><input data-k="sinalPct" inputmode="decimal" value="${esc(o.sinalPct??"")}" placeholder="Ex.: 50"></label>
+      <div class="field" style="grid-column:span 2"><span>Pix do sinal</span><span class="muted" style="font-size:.88rem;align-self:center">${state.cfg.empresa.pix ? `O PDF e o link levam o QR code Pix do sinal (chave ${esc(state.cfg.empresa.pix)}).` : `Cadastre sua chave Pix em <b>Ajustes → Dados da empresa</b> para o PDF levar o QR code do sinal.`}</span></div></div>
       <div class="grid2"><label class="field"><span>Condições de pagamento</span><input data-k="pagamento" value="${esc(o.pagamento)}"></label>
       <label class="field"><span>Prazo de execução</span><input data-k="prazo" value="${esc(o.prazo)}" placeholder="Ex.: 10 dias úteis após aprovação"></label></div>
       <label class="field"><span>Observações</span><textarea data-k="obs" rows="3" placeholder="Ex.: Içamento e andaimes por conta do cliente. Inclui ART.">${esc(o.obs)}</textarea></label>
     </div>
-    <div class="row" style="justify-content:space-between">${o.id?`<span class="row"><button class="btn danger" data-act="delOrc">Excluir orçamento</button><button class="btn" data-act="dupOrc">Duplicar</button></span>`:"<span></span>"}
+    <div class="panel form"><h3>Enviar para o cliente</h3>
+      <p class="muted" style="margin:0">O cliente recebe o link, vê a proposta no celular e aprova com nome e assinatura. O orçamento muda para “Aprovado” sozinho e você é avisado.</p>
+      <div class="row" style="flex-wrap:wrap"><button class="btn primary" data-act="orcZap">📲 Enviar pelo WhatsApp</button><button class="btn" data-act="orcLinkCopiar">🔗 Copiar link de aprovação</button><button class="btn" data-act="orcPdf">Salvar e baixar PDF</button></div>
+    </div>
+    <div class="row" style="justify-content:space-between">${o.id?`<span class="row"><button class="btn danger" data-act="delOrc">Excluir orçamento</button><button class="btn" data-act="dupOrc">Duplicar</button><button class="btn" data-act="orcSalvarModelo">Salvar como modelo</button></span>`:`<span class="row"><button class="btn" data-act="orcSalvarModelo">Salvar como modelo</button></span>`}
       <span class="row"><button class="btn" data-act="orcPdf">Salvar e baixar PDF</button><button class="btn primary" data-act="saveOrc">Salvar</button></span></div>
   </div>`;
 }
@@ -89,24 +135,47 @@ function itemsHtml(o){
     ${i.tipo==="mat" && !o.matCliente ? `<label class="check" style="grid-column:1/-1;margin:0"><input type="checkbox" data-f="cliente" ${i.cliente?"checked":""}> Por conta do cliente</label>` : ""}
     <button class="iconbtn" data-act="delItem" data-i="${k}" aria-label="Remover item">✕</button></div>`).join("");
 }
-function totalsHtml(o){ const T=orcTotals(o); return `<div><span>Subtotal</span><span class="mono">${brl(T.sub)}</span></div>${T.desc?`<div><span>Desconto</span><span class="mono">- ${brl(T.desc)}</span></div>`:""}<div class="grand"><span>Total</span><span>${brl(T.total)}</span></div>`; }
+function totalsHtml(o){ const T=orcTotals(o), op=orcOpcoes(o); return `<div><span>Subtotal</span><span class="mono">${brl(T.sub)}</span></div>${T.desc?`<div><span>Desconto</span><span class="mono">- ${brl(T.desc)}</span></div>`:""}${op?`<div class="grand"><span>Opção A · com material</span><span>${brl(op.A)}</span></div><div class="grand"><span>Opção B · material do cliente</span><span>${brl(op.B)}</span></div>`:`<div class="grand"><span>Total</span><span>${brl(T.total)}</span></div>`}`; }
+function orcThumbs(o){ return (o.fotos||[]).map(id=>`<span class="thumb"><img src="${esc(blobSrc(id))}" data-fid="${esc(id)}" alt="Foto da visita" data-act="fotoVer" data-id="${esc(id)}" loading="lazy"><button type="button" class="thumbx" data-act="orcFotoDel" data-id="${esc(id)}" aria-label="Remover foto">✕</button></span>`).join(""); }
 document.addEventListener("input", e=>{
   if(state.view!=="orcEdit" || !e.target.closest("#orcForm")) return;
   const o = state.orcDraft; const t = e.target;
   if(t.dataset.k){ const v = t.type==="checkbox" ? t.checked : t.value; const p = t.dataset.k.split("."); if(p.length===2) o[p[0]][p[1]] = v; else o[p[0]] = v; }
   if(t.dataset.f){ const k = +t.closest(".itemrow").dataset.i; o.itens[k][t.dataset.f] = t.type==="checkbox" ? t.checked : t.value; const el=document.querySelector(`[data-tot="${k}"]`); if(el && !matDoCliente(o, o.itens[k])) el.textContent = brl(numIn(o.itens[k].qtd)*numIn(o.itens[k].valor)); }
   if(t.type==="checkbox" && (t.dataset.f==="cliente" || t.dataset.k==="matCliente")) $("#items").innerHTML = itemsHtml(o); // mostra/esconde o valor do material
+  const opb = $("#orc-opb"); if(opb) opb.hidden = !!o.matCliente || !temMatComValor(o);
   $("#orcTotals").innerHTML = totalsHtml(o);
   state.orcDirty = true;
 });
 document.addEventListener("change", e=>{ if(state.view==="orcEdit" && e.target.dataset && e.target.dataset.k && (e.target.type==="checkbox"||e.target.tagName==="SELECT")){ const o=state.orcDraft; const p=e.target.dataset.k; o[p] = e.target.type==="checkbox"?e.target.checked:e.target.value; state.orcDirty=true; } });
+// telefone do cliente para o WhatsApp: só números, com 55 na frente (vazio abre o WhatsApp para escolher o contato)
+function foneZap(t){ const d = String(t||"").replace(/\D/g, ""); return !d ? "" : d.length>=12 && d.startsWith("55") ? d : "55" + d; }
+function orcMsg(o, link){ const op = orcOpcoes(o), T = orcTotals(o), val = orcValidade(o), nome = (o.cliente?.contato||o.cliente?.nome||"").split(" ")[0];
+  return `Olá${nome?" "+nome:""}! Segue a proposta nº ${o.numero} da ${state.cfg.empresa.nome}${o.titulo?` – ${o.titulo}`:""}.\n\n`
+    + (op ? `Opção A (com material): ${brl(op.A)}\nOpção B (material por sua conta): ${brl(op.B)}` : `Valor: ${brl(T.total)}${o.matCliente?" (material por conta do cliente)":""}`)
+    + `${val?`\nVálida até ${fdate(val)}.`:""}\n\nVeja os detalhes e aprove pelo celular, com sua assinatura:\n${link}`; }
+async function orcLinkGerar(){
+  if(!navigator.onLine || state.offline){ toast("Sem internet agora. O link de aprovação precisa de conexão."); return ""; }
+  if(!(await saveOrc())) return "";
+  const o = state.orcDraft;
+  try{ const {data:token, error} = await sb.rpc("link_orcamento", {p_orc:o.id, p_snap:orcSnap(o)}); if(error) throw dbErr(error);
+    const extra = {linkToken:token}; if(o.status==="rascunho"){ extra.status = "enviado"; extra.enviadoEm = today(); }
+    const atual = state.orc.find(x=>x.id===o.id) || o; await save("orcamentos", {...atual, ...extra}); Object.assign(o, extra, {_v: state.orc.find(x=>x.id===o.id)?._v});
+    state.orcDirty = false; return `${location.origin}/orcamento#t=${token}`; }
+  catch(err){ toast(/link_orcamento|function|PGRST202/i.test(String(err?.message||err)) ? "O link de aprovação ainda não foi ativado no banco de dados." : writeErr(err)); return ""; }
+}
+document.addEventListener("change", async e=>{ if(e.target.id!=="orc-foto" || !e.target.files.length || !state.orcDraft) return; const t = e.target;
+  const ids = await uploadPhotos([...t.files], {tipo:"antes", os:"", unid:state.orcDraft.cliente?.nome||""}); t.value = "";
+  state.orcDraft.fotos = [...(state.orcDraft.fotos||[]), ...ids]; const box = $("#orc-thumbs"); if(box) box.innerHTML = orcThumbs(state.orcDraft); state.orcDirty = true; });
 async function saveOrc(){
   const o = clone(state.orcDraft);
   if(!o.cliente.nome.trim()){ toast("Informe o nome do cliente."); return false; }
   if(!o.numero) o.numero = nextNumero();
   o.validadeDias = +o.validadeDias || 15;
   delete o.exemplo;
-  try{ const id = await save("orcamentos", o); state.orcDraft.id = id; state.orcDraft.numero = o.numero; state.orcDirty=false; toast(`Orçamento ${o.numero} salvo`); return true; }
+  try{ const id = await save("orcamentos", o); state.orcDraft.id = id; state.orcDraft.numero = o.numero; state.orcDirty=false;
+    const v = state.orc.find(x=>x.id===id)?._v; if(v) state.orcDraft._v = v; // a próxima gravação parte desta versão (senão daria "alterado em outro aparelho")
+    toast(`Orçamento ${o.numero} salvo`); return true; }
   catch(err){ toast(writeErr(err)); return false; }
 }
 

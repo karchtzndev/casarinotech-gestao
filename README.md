@@ -28,6 +28,7 @@ orçamentos, fechamentos e valores a receber. Derivado do projeto `gaap-gestao`,
 | `supabase/migrations/` | Estrutura completa do banco, regras de acesso e funções (rodar em ordem) |
 | `supabase/functions/lembretes/` | Função do servidor que envia os lembretes no celular |
 | `sw.js` | Recebe as notificações no celular e guarda o app para abrir sem internet |
+| `orcamento.html`, `orcamento.js`, `orcamento.css` | Página pública onde o cliente vê a proposta, escolhe a opção, assina e aprova (ou recusa) pelo link |
 | `aprovar.html`, `aprovar.js` | Página pública onde o cliente confere e aprova (ou contesta) uma medição pelo link |
 | `.github/workflows/manter-ativo.yml` | Chama o banco todo dia para o plano gratuito não pausar |
 | `.github/workflows/testes.yml` | Roda os testes a cada envio |
