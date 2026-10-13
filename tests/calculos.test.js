@@ -100,6 +100,12 @@ test("total do orçamento com desconto", ()=>{
   const t = g("orcTotals")({itens:[{qtd:"2", valor:"150,50"}, {qtd:"1", valor:"99"}], descontoPct:"10"});
   assert.equal(t.sub, 400); assert.equal(t.desc, 40); assert.equal(t.total, 360);
 });
+test("material por conta do cliente fica fora do total", ()=>{
+  const mo = {tipo:"mo", qtd:"8", valor:"60"}, mat = {tipo:"mat", qtd:"10", valor:"25"}, matCli = {tipo:"mat", qtd:"4", valor:"100", cliente:true};
+  assert.equal(g("orcTotals")({itens:[mo, mat, matCli]}).total, 730);            // 480 + 250; o do cliente não soma
+  assert.equal(g("orcTotals")({itens:[mo, mat, matCli], matCliente:true}).total, 480); // todo material do cliente: só a mão de obra
+  assert.equal(g("orcTotals")({itens:[mo, {tipo:"srv", qtd:"1", valor:"200", cliente:true}], matCliente:true}).total, 680); // serviço continua somando
+});
 test("números digitados no formato brasileiro", ()=>{
   assert.equal(g("num")("1.234,56"), 1234.56);
   assert.equal(g("numIn")("12.5"), 12.5);

@@ -730,7 +730,7 @@ function orcPdf(o){
   if(o.titulo){ doc.setFont("helvetica","bold"); doc.setFontSize(11.5); doc.setTextColor(...INK); const tl=doc.splitTextToSize(`Objeto: ${o.titulo}`,182); tl.forEach(l=>{doc.text(l,14,y); y+=5.5;}); y+=2; }
   if(o.apresentacao) block("Quem somos", E.sobre);
   block("Escopo dos serviços", o.escopo);
-  const itens = (o.itens||[]).filter(i=>i.desc||numIn(i.valor));
+  const todos = (o.itens||[]).filter(i=>i.desc||numIn(i.valor)), doCliente = todos.filter(i=>matDoCliente(o,i)), itens = todos.filter(i=>!matDoCliente(o,i));
   y = ensure(doc,y,30);
   doc.autoTable({startY:y, theme:"grid", margin:{left:14,right:14},
     head:[["Item","Descrição","Un.","Qtd.","Valor unit.","Total"]],
@@ -743,7 +743,20 @@ function orcPdf(o){
   tot.push([{content:"VALOR TOTAL",styles:{fontStyle:"bold",fontSize:10.5}},{content:brl(T.total),styles:{fontStyle:"bold",fontSize:10.5,textColor:GREEN}}]);
   doc.autoTable({startY:y, theme:"plain", margin:{left:120,right:14}, body:tot, styles:{fontSize:9.2,cellPadding:1.4,textColor:INK}, columnStyles:{1:{halign:"right"}}});
   y = doc.lastAutoTable.finalY + 7;
+  if(doCliente.length){ // material fornecido pelo cliente: só descrição e quantidade, fora do valor
+    y = ensure(doc, y, 30);
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...NAVY); doc.text("MATERIAL POR CONTA DO CLIENTE", 14, y); y += 4.5;
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.6); doc.setTextColor(...INK);
+    doc.splitTextToSize("Os materiais abaixo serão fornecidos pelo cliente e não estão incluídos no valor desta proposta.", 182).forEach(l=>{ doc.text(l, 14, y); y += 4; }); y += 1;
+    doc.autoTable({startY:y, theme:"grid", margin:{left:14,right:14},
+      head:[["Item","Descrição","Un.","Qtd."]],
+      body: doCliente.map((i,k)=>[String(k+1), i.desc||"", i.un||"", String(numIn(i.qtd)).replace(".",",")]),
+      styles:{fontSize:8.8,cellPadding:2,textColor:INK,lineColor:[210,217,226],lineWidth:0.2,valign:"middle"},
+      headStyles:{fillColor:[236,240,245],textColor:INK}, columnStyles:{0:{cellWidth:12,halign:"center"},2:{cellWidth:14,halign:"center"},3:{cellWidth:20,halign:"right"}}});
+    y = doc.lastAutoTable.finalY + 7;
+  }
   const cond = [];
+  if(doCliente.length) cond.push(["Materiais", "Por conta do cliente (não incluídos no valor desta proposta)"]);
   if(o.pagamento) cond.push(["Condições de pagamento", o.pagamento]);
   if(o.prazo) cond.push(["Prazo de execução", o.prazo]);
   if(val) cond.push(["Validade da proposta", `${o.validadeDias} dias (até ${fdate(val)})`]);

@@ -118,7 +118,7 @@ function calcRaw(e){
   r.valor = Math.round((r.vn+r.v50+r.v100+r.vnot)*100)/100;
   return r;
 }
-const VERSAO = "2026.10.09-6";
+const VERSAO = "2026.10.13-1";
 const NOITE_INI = 22*60, NOITE_FIM = 5*60;
 function rateFor(emp, data){
   let t = (state.cfg.taxas||{})[emp] || {}; const num0 = (v,d) => (v===""||v==null||isNaN(+v)) ? d : +v;
@@ -240,7 +240,9 @@ function confHtml(lista, titulo, max=8){
   ${lista.length>max?`<p class="muted" style="margin:6px 0 0">E mais ${lista.length-max} dia(s).</p>`:""}</section>`;
 }
 /* ---------- orçamento ---------- */
-function orcTotals(o){ const sub=(o.itens||[]).reduce((s,i)=>s+numIn(i.qtd)*numIn(i.valor),0); const desc=sub*numIn(o.descontoPct)/100; return {sub,desc,total:Math.round((sub-desc)*100)/100}; }
+// material fornecido pelo cliente: vai no orçamento com descrição e quantidade, sem valor e fora do total
+const matDoCliente = (o, i) => i.tipo==="mat" && (!!o.matCliente || !!i.cliente);
+function orcTotals(o){ const sub=(o.itens||[]).filter(i=>!matDoCliente(o,i)).reduce((s,i)=>s+numIn(i.qtd)*numIn(i.valor),0); const desc=sub*numIn(o.descontoPct)/100; return {sub,desc,total:Math.round((sub-desc)*100)/100}; }
 const RETS = [["iss","ISS"],["inss","INSS"],["ir","IR"],["outras","Outras"]];
 const retTot = r => RETS.reduce((s,[k])=>s+numIn((r.ret||{})[k]),0);
 const recBruto = r => numIn(r.valor) + retTot(r);
