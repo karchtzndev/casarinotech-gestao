@@ -268,7 +268,7 @@ async function boot(){
     if(state.worker) state.view = "worker"; else if(state.view==="worker") state.view = "painel";
     if(outbox.lista.length || fotosPend.size) await sincronizar();
     await carregar(); state.offline = false;
-    pushEstado().catch(()=>{}); setTimeout(()=>{ carregarChamados(); portalAgendar(); }, 1500);
+    pushEstado().catch(()=>{}); setTimeout(()=>{ carregarChamados(); portalAgendar(); }, 1500); setTimeout(prepararLeitorOffline, 15000);
   }catch(err){
     const rede = (err && err.rede) || ehRede(err);
     if(temLocal && rede){ state.offline = true; toast("Internet fraca ou sem conexão: usando os dados salvos neste aparelho. O que você lançar será enviado quando a conexão voltar."); }

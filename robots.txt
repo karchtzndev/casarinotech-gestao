@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /orcamento
+Disallow: /aprovar
+Disallow: /portal
+
+Sitemap: https://casarinotech-gestao.vercel.app/sitemap.xml
